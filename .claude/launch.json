@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ballegh-demo",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "demo", "start"],
+      "port": 4000
+    }
+  ]
+}

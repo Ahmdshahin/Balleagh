@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — لوحة المحافظ</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  .page { max-width:1280px; margin:0 auto; padding:18px 16px 40px; display:grid; gap:16px; }
+  .hello { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+  .hello h1 { margin:0; font-size:24px; }
+  .grid2 { display:grid; grid-template-columns:1.25fr 1fr; gap:16px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  @media (max-width:980px) { .grid2, .grid3 { grid-template-columns:1fr; } }
+  #gmap { height:430px; border-radius:14px; overflow:hidden; }
+  .kpi .v { font-size:32px; }
+  .alert { display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:12px; background:#FDECEC; color:#7F1D1D; font-size:14px; cursor:pointer; }
+  .alert + .alert { margin-top:8px; }
+  table.rank { width:100%; border-collapse:collapse; font-size:14px; }
+  table.rank th { text-align:right; font-size:12px; color:var(--muted); font-weight:600; padding:8px 6px; border-bottom:1px solid var(--border); cursor:pointer; white-space:nowrap; }
+  table.rank td { padding:8px 6px; border-bottom:1px solid var(--surface-2); font-variant-numeric:tabular-nums; }
+  table.rank tr:hover td { background:var(--surface-2); cursor:pointer; }
+  .bars { display:grid; gap:8px; }
+  .bar-row { display:grid; grid-template-columns:130px 1fr 40px; gap:8px; align-items:center; font-size:13px; }
+  .bar-row .b { height:10px; border-radius:6px; background:var(--green-500); }
+  .bar-row .b.gold { background:var(--gold-500); }
+  .chart svg { width:100%; height:auto; }
+  .drawer { position:fixed; inset:0 auto 0 0; width:min(520px,100%); background:var(--surface); box-shadow:var(--sh-lg); z-index:50; overflow-y:auto; transform:translateX(-105%); transition:transform .25s; }
+  .drawer.open { transform:none; }
+</style>
+</head>
+<body>
+<header class="topbar no-print">
+  <span id="brand"></span>
+  
+  <span class="spacer"></span>
+  <select class="input" id="days" style="width:auto"><option value="7">آخر 7 أيام</option><option value="30" selected>آخر 30 يوم</option><option value="60">آخر 60 يوم</option></select>
+  <button class="btn sm" id="pdf">تقرير PDF</button>
+</header>
+<div class="page">
+  <div class="hello"><div><div class="muted small" id="today"></div><h1>صباح الخير يا سيادة المحافظ</h1></div><span class="spacer"></span><span class="small muted" id="upd"></span></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid2">
+    <div class="card"><h3>خريطة أداء الوحدات المحلية</h3><div id="gmap"></div></div>
+    <div class="card"><h3>إنذارات تحتاج تدخل <span class="badge plain" id="alertsN" style="background:#FDECEC;color:#B91C1C"></span></h3><div id="alerts" style="max-height:440px;overflow:auto"></div></div>
+  </div>
+  <div class="grid3">
+    <div class="card"><h3>المشاكل حسب النوع</h3><div class="bars" id="cats"></div></div>
+    <div class="card"><h3>أكثر القرى في البلاغات</h3><div class="bars" id="villages"></div></div>
+    <div class="card chart"><h3>اتجاه الأداء — آخر 8 أسابيع</h3><div id="trend"></div><div class="tiny muted row"><span style="color:var(--green-500)">━ الالتزام بمدد الحل %</span><span style="color:var(--gold-700)">┅ عدد البلاغات</span></div></div>
+  </div>
+  <div class="card"><div class="row"><h3 style="margin:0">ترتيب الوحدات المحلية ورؤسائها</h3><span class="spacer"></span><select class="input" id="center" style="width:auto"><option value="">كل المراكز</option></select></div>
+    <div style="overflow-x:auto;margin-top:8px"><table class="rank" id="rank"></table></div></div>
+</div>
+<div class="drawer" id="drawer"></div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+import { mountNav, api, meta, useUser, esc, fmt, dur, bandBadge, BAND_COLOR, brandHtml, catAr, toast } from '/js/common.js';
+import { createMap, addUnits, hoverUnits } from '/js/map.js';
+import { renderDetail } from '/js/detail.js';
+import { icon } from '/js/icons.js';
+
+document.getElementById('brand').innerHTML = brandHtml(); mountNav('governor');
+useUser('gov');
+await meta();
+document.getElementById('today').textContent = new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const [geo, users] = await Promise.all([api('/api/geo'), api('/api/users?role=UNIT_HEAD')]);
+document.getElementById('center').insertAdjacentHTML('beforeend', geo.centers.features.map(f => `<option value="${f.properties.id}">${esc(f.properties.name)}</option>`).join(''));
+let K, sortKey = 'score', sortDir = 1;
+
+const map = createMap('gmap', { zoom: 9.3 });
+await new Promise(r => map.on('load', r));
+addUnits(map, geo.units);
+hoverUnits(map, p => { const u = K?.units.find(x => x.id === p.id); return `<b>${esc(p.name)}</b><div class="small">${u ? bandBadge(u.band, u.score) : ''}</div>${u ? `<div class="tiny muted num">${u.total} بلاغ · ${u.overdue} متأخر · رضا ${fmt(u.k6, 1)}</div>` : ''}`; });
+
+async function load() {
+  K = await api(`/api/kpis?days=${document.getElementById('days').value}`);
+  document.getElementById('upd').textContent = 'آخر تحديث: ' + new Date().toLocaleTimeString('ar-EG-u-nu-latn', { hour: '2-digit', minute: '2-digit' });
+  const o = K.overall, t = K.trend, last = t[t.length - 1], prev = t[t.length - 2];
+  const delta = (a, b, good = 1, suffix = '') => a == null || b == null ? '' : `<span class="d ${(a - b) * good >= 0 ? 'up' : 'down'}">${a - b >= 0 ? '↑' : '↓'} ${fmt(Math.abs(a - b), 1)}${suffix} عن الأسبوع السابق</span>`;
+  document.getElementById('kpis').innerHTML = [
+    ['إجمالي البلاغات', fmt(o.allTotal), `${fmt(o.open)} مفتوح · ${fmt(o.overdue)} متأخر`],
+    ['الالتزام بمدد الحل', o.k3 == null ? '—' : fmt(o.k3) + '%', delta(last.k3, prev.k3, 1, '%')],
+    ['نسبة الحل', o.k4 == null ? '—' : fmt(o.k4) + '%', `متوسط زمن الحل ${o.k2 == null ? '—' : dur(o.k2 * 3_600_000)}`],
+    ['رضا المواطن', o.k6 == null ? '—' : fmt(o.k6, 1) + ' / 5', delta(last.k6, prev.k6, 1)],
+    ['وحدات تحت الحد الأدنى', fmt(K.units.filter(u => u.band === 'poor').length), `من ${K.units.length} وحدة محلية`],
+  ].map(([l, v, d]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="tiny muted">${d}</div></div>`).join('');
+
+  const fc = structuredClone(geo.units);
+  fc.features.forEach(f => { const u = K.units.find(x => x.id === f.properties.id); f.properties.band = u?.band || 'insufficient'; });
+  map.getSource('units').setData(fc);
+
+  document.getElementById('alertsN').textContent = K.alerts.length;
+  document.getElementById('alerts').innerHTML = K.alerts.map(a => `<div class="alert" data-unit="${a.unitId || ''}" data-report="${a.reportId || ''}">${icon('alert', 18)}<span>${esc(a.text)}</span></div>`).join('') || '<div class="muted small">لا توجد إنذارات 👍</div>';
+
+  const max = Math.max(...K.byCategory.map(c => c.count), 1);
+  document.getElementById('cats').innerHTML = K.byCategory.slice(0, 8).map(c => `<div class="bar-row"><span>${esc(c.ar)}</span><div class="b" style="width:${c.count / max * 100}%"></div><span class="num">${c.count}</span></div>`).join('');
+  const vmax = Math.max(...K.topVillages.map(v => v.count), 1);
+  document.getElementById('villages').innerHTML = K.topVillages.slice(0, 8).map(v => `<div class="bar-row"><span>${esc(v.name)}</span><div class="b gold" style="width:${v.count / vmax * 100}%"></div><span class="num">${v.count}</span></div>`).join('');
+  trend(K.trend);
+  rank();
+}
+
+function trend(t) {
+  const W = 360, H = 170, P = 26;
+  const x = i => P + i * (W - 2 * P) / (t.length - 1);
+  const maxN = Math.max(...t.map(d => d.total), 1);
+  const yK = v => H - P - (v ?? 0) / 100 * (H - 2 * P);
+  const yN = v => H - P - v / maxN * (H - 2 * P);
+  const line = (f, key) => t.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${f(d[key]).toFixed(1)}`).join(' ');
+  document.getElementById('trend').innerHTML = `<svg viewBox="0 0 ${W} ${H}" direction="ltr">
+    ${[0, 50, 100].map(v => `<line x1="${P}" x2="${W - P}" y1="${yK(v)}" y2="${yK(v)}" stroke="#EFF3F0"/><text x="${P - 4}" y="${yK(v) + 4}" font-size="10" fill="#5A6B60" text-anchor="end">${v}%</text>`).join('')}
+    <path d="${line(yN, 'total')}" fill="none" stroke="#F4A21D" stroke-width="2" stroke-dasharray="4 3"/>
+    <path d="${line(yK, 'k3')}" fill="none" stroke="#1E8A3E" stroke-width="2.5"/>
+    ${t.map((d, i) => `<circle cx="${x(i)}" cy="${yK(d.k3)}" r="3" fill="#1E8A3E"><title>${fmt(d.k3)}% · ${d.total} بلاغ</title></circle>`).join('')}
+    ${t.map((d, i) => i % 2 ? '' : `<text x="${x(i)}" y="${H - 6}" font-size="9" fill="#5A6B60" text-anchor="middle">${new Date(d.to).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })}</text>`).join('')}
+  </svg>`;
+}
+
+function rank() {
+  const c = document.getElementById('center').value;
+  const rows = K.units.filter(u => !c || u.centerId === c).sort((a, b) => ((a[sortKey] ?? -1) - (b[sortKey] ?? -1)) * sortDir * (sortKey === 'score' ? -1 : 1));
+  const head = (k, t) => `<th data-k="${k}">${t}${sortKey === k ? (sortDir > 0 ? ' ▾' : ' ▴') : ''}</th>`;
+  document.getElementById('rank').innerHTML = `<thead><tr>${head('rank', '#')}<th>الوحدة المحلية</th><th>رئيس الوحدة</th><th>المركز</th>${head('score', 'الدرجة')}${head('total', 'البلاغات')}${head('overdue', 'متأخر')}${head('k3', 'الالتزام %')}${head('k1', 'زمن الاستلام')}${head('k6', 'الرضا')}${head('k7', 'الرفض %')}</tr></thead>
+    <tbody>${rows.map(u => `<tr data-unit="${u.id}"><td>${u.rank ?? '—'}</td><td><b>${esc(u.name)}</b></td><td class="small">${esc(users.find(h => h.unitId === u.id)?.name || '')}</td><td class="small muted">${esc(u.centerName)}</td>
+      <td>${bandBadge(u.band, u.score)}</td><td>${u.total}</td><td style="color:${u.overdue ? '#B91C1C' : ''}">${u.overdue}</td><td>${fmt(u.k3)}</td><td>${u.k1 == null ? '—' : dur(u.k1 * 3_600_000)}</td><td>${fmt(u.k6, 1)}</td><td style="color:${u.k7 > 15 ? '#B91C1C' : ''}">${fmt(u.k7)}</td></tr>`).join('')}</tbody>`;
+}
+document.getElementById('rank').onclick = e => {
+  const th = e.target.closest('th[data-k]');
+  if (th) { if (sortKey === th.dataset.k) sortDir *= -1; else { sortKey = th.dataset.k; sortDir = 1; } return rank(); }
+  const tr = e.target.closest('tr[data-unit]'); if (tr) unitDrawer(tr.dataset.unit);
+};
+document.getElementById('alerts').onclick = e => { const a = e.target.closest('.alert'); if (!a) return; if (a.dataset.report) reportDrawer(a.dataset.report); else unitDrawer(a.dataset.unit); };
+map.on('click', 'units-fill', e => unitDrawer(e.features[0].properties.id));
+
+const drawer = document.getElementById('drawer');
+const closeBtn = `<button class="icon-btn" data-close style="position:sticky;top:10px;margin:10px">${icon('x', 18)}</button>`;
+drawer.addEventListener('click', e => { if (e.target.closest('[data-close]')) drawer.classList.remove('open'); const it = e.target.closest('[data-rid]'); if (it) reportDrawer(it.dataset.rid); });
+async function unitDrawer(id) {
+  const u = K.units.find(x => x.id === id);
+  const all = await api(`/api/reports?days=${document.getElementById('days').value}`);
+  const late = all.filter(r => r.unitId === id && Date.now() > r.resolveDueAt && !['CLOSED', 'RESOLVED', 'REJECTED', 'PENDING_BUDGET'].includes(r.status)).sort((a, b) => a.resolveDueAt - b.resolveDueAt);
+  drawer.innerHTML = `${closeBtn}<div style="padding:0 18px 18px" class="stack">
+    <div><h2 style="margin:0">${esc(u.name)}</h2><div class="muted small">${esc(u.centerName)} · رئيس الوحدة: ${esc(users.find(h => h.unitId === id)?.name || '')}</div></div>
+    <div>${bandBadge(u.band, u.score)} <span class="small muted">الترتيب ${u.rank ?? '—'} من ${u.rankOf}</span></div>
+    <div class="kpis">${[['البلاغات', u.total], ['متأخر', u.overdue], ['الالتزام', fmt(u.k3) + '%'], ['الرضا', fmt(u.k6, 1)], ['الرفض', fmt(u.k7) + '%'], ['إعادة الفتح', fmt(u.k5) + '%']].map(([l, v]) => `<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:22px">${v}</div></div>`).join('')}</div>
+    <a class="btn secondary" href="/report.html?unit=${id}&days=${document.getElementById('days').value}" target="_blank">تقرير PDF رسمي للوحدة</a>
+    <div class="section-title">البلاغات المتأخرة (${late.length})</div>
+    ${late.slice(0, 30).map(r => `<div class="ritem" data-rid="${r.id}" style="grid-template-columns:1fr"><div><div class="row"><span class="t">${esc(catAr(r.category))}</span><span class="spacer"></span><span class="tiny" style="color:#B91C1C">متأخر ${dur(Date.now() - r.resolveDueAt)}</span></div><div class="s">${esc(r.villageName)} · <span class="num" dir="ltr">${esc(r.code)}</span></div></div></div>`).join('') || '<div class="muted small">لا توجد بلاغات متأخرة</div>'}
+  </div>`;
+  drawer.classList.add('open');
+}
+async function reportDrawer(id) {
+  drawer.innerHTML = closeBtn + '<div id="rd"></div>';
+  drawer.classList.add('open');
+  await renderDetail(drawer.querySelector('#rd'), id, { actions: r => `<a class="btn sm secondary" href="/report.html?id=${r.id}" target="_blank">تقرير PDF</a>` });
+}
+
+document.getElementById('days').onchange = load;
+document.getElementById('center').onchange = rank;
+document.getElementById('pdf').onclick = () => window.open(`/report.html?days=${document.getElementById('days').value}`, '_blank');
+const s = io(); let t; s.on('report:new', () => { clearTimeout(t); t = setTimeout(load, 3000); }); s.on('report:update', () => { clearTimeout(t); t = setTimeout(load, 3000); }); s.on('demo:reset', load);
+load();
+</script>
+</body>
+</html>

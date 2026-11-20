@@ -1,0 +1,46 @@
+/* Ballegh — design tokens (mirror of tokens.json) */
+:root {
+  --green-50: #E8F5EC; --green-100: #C8E7D1; --green-200: #9DD4AE; --green-300: #6BBE87;
+  --green-400: #3FA765; --green-500: #1E8A3E; --green-600: #187535; --green-700: #135F2B;
+  --green-800: #0E4A21; --green-900: #093517;
+  --gold-50: #FEF6E6; --gold-100: #FDE6B8; --gold-300: #F8C463; --gold-500: #F4A21D;
+  --gold-600: #D98A0C; --gold-700: #B06E07;
+
+  --bg: #F7F9F7; --surface: #FFFFFF; --surface-2: #EFF3F0; --border: #D9E1DB;
+  --text: #16211A; --text-muted: #5A6B60;
+  --primary: var(--green-600); --primary-strong: var(--green-700); --primary-soft: var(--green-50);
+  --accent: var(--gold-500); --accent-text: var(--gold-700);
+
+  --status-new: #2563EB; --status-ack: #0891B2; --status-progress: #D97706;
+  --status-pending: #7C3AED; --status-resolved: #16A34A; --status-closed: #64748B;
+  --status-rejected: #B91C1C; --status-reopened: #DB2777;
+
+  --priority-critical: #DC2626; --priority-urgent: #EA580C;
+  --priority-normal: #2563EB; --priority-low: #94A3B8;
+
+  --perf-good: #16A34A; --perf-fair: #EAB308; --perf-poor: #DC2626; --perf-none: #94A3B8;
+
+  --font-heading: 'Readex Pro', 'Segoe UI', Tahoma, sans-serif;
+  --font-body: 'Readex Pro', 'Segoe UI', Tahoma, sans-serif;
+
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px rgb(22 33 26 / .06);
+  --shadow-md: 0 4px 12px rgb(22 33 26 / .08);
+  --shadow-lg: 0 12px 32px rgb(22 33 26 / .12);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1511; --surface: #16201A; --surface-2: #1E2A23; --border: #2C3A31;
+    --text: #E8EEE9; --text-muted: #9AAB9F;
+    --primary: var(--green-400); --primary-soft: #16301F; --accent-text: var(--gold-300);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1511; --surface: #16201A; --surface-2: #1E2A23; --border: #2C3A31;
+  --text: #E8EEE9; --text-muted: #9AAB9F;
+  --primary: var(--green-400); --primary-soft: #16301F; --accent-text: var(--gold-300);
+}
+
+html[dir="rtl"] body { font-family: var(--font-body); line-height: 1.6; }
+.num { font-variant-numeric: tabular-nums; font-family: var(--font-heading); }

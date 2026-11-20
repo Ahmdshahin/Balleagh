@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — النموذج التجريبي</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  .hero { background:linear-gradient(160deg,#187535 0%,#0E4A21 100%); color:#fff; padding:44px 16px 80px; }
+  .hero .in { max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:28px; flex-wrap:wrap; }
+  .hero img.gov { height:96px; background:#fff; border-radius:16px; padding:8px; }
+  .hero h1 { margin:0; font-size:48px; line-height:1.1; }
+  .hero p { margin:8px 0 0; font-size:17px; opacity:.88; max-width:620px; }
+  .mark { width:84px; height:84px; background:#fff; border-radius:22px; display:grid; place-items:center; }
+  .wrapx { max-width:1100px; margin:-52px auto 40px; padding:0 16px; display:grid; gap:18px; }
+  .roles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  @media (max-width:900px) { .roles { grid-template-columns:1fr 1fr; } .hero h1 { font-size:36px; } }
+  @media (max-width:520px) { .roles { grid-template-columns:1fr; } }
+  .role { background:#fff; border:1px solid var(--border); border-radius:18px; padding:18px; text-decoration:none; color:inherit; display:grid; gap:8px; box-shadow:var(--sh-md); transition:transform .15s, box-shadow .15s; }
+  .role:hover { transform:translateY(-3px); box-shadow:var(--sh-lg); }
+  .role .ic { width:48px; height:48px; border-radius:14px; display:grid; place-items:center; background:var(--primary-soft); color:var(--primary); }
+  .role b { font-size:18px; }
+  .role span { font-size:13px; color:var(--muted); line-height:1.6; }
+  .role em { font-style:normal; font-size:12px; color:var(--gold-700); font-weight:600; }
+  ol.scn { margin:0; padding-inline-start:20px; display:grid; gap:8px; font-size:14px; line-height:1.7; }
+  .lan { font-family:monospace; direction:ltr; background:var(--surface-2); padding:4px 10px; border-radius:8px; display:inline-block; font-size:15px; }
+</style>
+</head>
+<body>
+<section class="hero"><div class="in">
+  <div class="mark"><img src="/brand/ballegh-mark.svg" width="64" alt=""></div>
+  <div style="flex:1;min-width:260px"><h1>بلّغ — النموذج التجريبي</h1><p>منصة بلاغات محافظة الفيوم — بلاغ المواطن يوصل للوحدة المحلية المختصة تلقائياً، والمحافظة تتابع الأداء لحظياً على الخريطة.</p></div>
+  <img class="gov" src="/brand/fayoum-governorate-logo.png" alt="محافظة الفيوم">
+</div></section>
+<div class="wrapx">
+  <div class="roles">
+    <a class="role" href="/citizen.html" target="_blank"><span class="ic" id="i1"></span><b>تطبيق المواطن</b><span>تقديم بلاغ بالصور والموقع في 3 خطوات، ومتابعة الحالة وتقييم الحل.</span><em>يُفضّل فتحه على موبايل</em></a>
+    <a class="role" href="/ops.html" target="_blank"><span class="ic" id="i2"></span><b>غرفة العمليات</b><span>خريطة لحظية، خريطة حرارية، أداء الوحدات، المراجعة والإعدادات.</span><em>شاشة كبيرة</em></a>
+    <a class="role" href="/unit.html" target="_blank"><span class="ic" id="i3"></span><b>رئيس الوحدة المحلية</b><span>بلاغات نطاق الوحدة فقط، الإسناد للموظفين، ورفع تقرير الحل بالصورة.</span><em>ويب + موبايل</em></a>
+    <a class="role" href="/governor.html" target="_blank"><span class="ic" id="i4"></span><b>لوحة المحافظ</b><span>المؤشرات، الإنذارات، ترتيب الوحدات ورؤسائها، وتقارير PDF.</span><em>موبايل + ويب</em></a>
+    <a class="role" href="/" target="_blank"><span class="ic" id="i5"></span><b>الموقع العام</b><span>الصفحة الرئيسية للمواطنين: إزاي تبلّغ، الإحصائيات، الأسئلة الشائعة، الطوارئ.</span><em>محتواه من الـ CMS</em></a>
+    <a class="role" href="/map.html" target="_blank"><span class="ic" id="i6"></span><b>الخريطة (Map Viewer)</b><span>طبقات، استعلام، بحث، شريط زمني، قياس، وتصدير GeoJSON و Excel.</span><em>GIS</em></a>
+    <a class="role" href="/reports.html" target="_blank"><span class="ic" id="i7"></span><b>مركز التقارير</b><span>9 أنواع تقارير بفلاتر وفترات مخصصة، وتصدير Excel وطباعة PDF.</span><em>تحليل ورقابة</em></a>
+    <a class="role" href="/admin.html" target="_blank"><span class="ic" id="i8"></span><b>الإعدادات (CMS)</b><span>التصنيفات، مدد الحل، التصعيد، الأوزان، الوحدات، المستخدمون، ومحتوى الموقع.</span><em>مشرف الغرفة</em></a>
+  </div>
+  <div class="card"><h3>سيناريو العرض المقترح (7 دقائق)</h3>
+    <ol class="scn">
+      <li>افتح <b>غرفة العمليات</b> على الشاشة الكبيرة، وفعّل الصوت.</li>
+      <li>من <b>الموبايل</b> افتح تطبيق المواطن ← «دخول سريع» ← بلاغ جديد ← «تعدٍّ على أرض زراعية» ← صوّر ← «موقع تجريبي» ← إرسال.</li>
+      <li>البلاغ يظهر على الخريطة <b>خلال ثوانٍ</b> مع صوت تنبيه، ويتحدد تلقائياً للوحدة المختصة.</li>
+      <li>افتح <b>بوابة الوحدة المحلية</b> لنفس الوحدة ← استلام ← إسناد لموظف ← «تم الحل» مع صورة.</li>
+      <li>ارجع للموبايل ← البلاغ «تم الحل» ← قيّم بـ«متحلتش» ← البلاغ يتفتح تاني ويتصعّد للغرفة.</li>
+      <li>افتح <b>لوحة المحافظ</b> ← وحدة لونها أحمر ← افتح بلاغاتها المتأخرة ← «تقرير PDF رسمي».</li>
+      <li>في الغرفة: «سجل التدقيق» ← سلسلة البصمات سليمة، ومفيش أي إجراء ممكن يتمسح.</li>
+    </ol>
+  </div>
+  <div class="card"><h3>الفتح من الموبايل</h3>
+    <div class="small">الموبايل والكمبيوتر على نفس شبكة الـ Wi-Fi، وافتح على الموبايل:</div>
+    <div id="lan" style="margin-top:8px" class="row wrap"></div>
+    <div class="tiny muted" style="margin-top:8px">تحديد الموقع بالـ GPS على الموبايل محتاج اتصال آمن (HTTPS). على الشبكة المحلية استخدم زر «موقع تجريبي في الفيوم» أو اضغط على الخريطة.</div>
+  </div>
+  <div class="card row wrap"><div style="flex:1;min-width:240px"><h3 style="margin:0">البيانات التجريبية</h3><div class="small muted">حوالي 1,500 بلاغ وهمي على مدار 60 يوم، و25 وحدة محلية. أسماء القرى حقيقية، لكن أماكنها ونطاقات الوحدات تقريبية لحد ما نستلم ملف GDB والحدود الرسمية.</div></div>
+    <button class="btn danger" id="reset">إعادة توليد البيانات التجريبية</button></div>
+</div>
+<script type="module">
+import { api, toast } from '/js/common.js';
+import { icon } from '/js/icons.js';
+document.getElementById('i1').innerHTML = icon('camera', 26);
+document.getElementById('i2').innerHTML = icon('layers', 26);
+document.getElementById('i3').innerHTML = icon('doc', 26);
+document.getElementById('i4').innerHTML = icon('bell', 26);
+['i5:image', 'i6:pin', 'i7:doc', 'i8:filter'].forEach(x => { const [id, n] = x.split(':'); document.getElementById(id).innerHTML = icon(n, 26); });
+api('/api/info').then(i => { document.getElementById('lan').innerHTML = i.lan.map(u => `<span class="lan">${u}/citizen.html</span>`).join('') || '<span class="muted small">مفيش شبكة محلية متاحة</span>'; });
+document.getElementById('reset').onclick = async () => {
+  if (!confirm('هيتم مسح كل البلاغات الحالية وتوليد بيانات تجريبية جديدة. متأكد؟')) return;
+  const r = await api('/api/demo/reset', { method: 'POST' });
+  toast(`تم: ${r.reports} بلاغ`, 'ok');
+};
+</script>
+</body>
+</html>

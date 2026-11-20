@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>اختيار خطوط بلّغ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@400;600;800&family=Almarai:wght@400;700;800&family=Baloo+Bhaijaan+2:wght@400;600;800&family=Cairo:wght@400;600;800&family=Changa:wght@400;600;800&family=El+Messiri:wght@400;600;700&family=IBM+Plex+Sans+Arabic:wght@400;600;700&family=Lalezar&family=Noto+Kufi+Arabic:wght@400;600;800&family=Noto+Sans+Arabic:wght@400;600;800&family=Readex+Pro:wght@400;600;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --g5:#1E8A3E; --g6:#187535; --g50:#E8F5EC; --gold:#F4A21D; --gold7:#B06E07;
+    --bg:#F7F9F7; --surface:#fff; --s2:#EFF3F0; --border:#D9E1DB; --text:#16211A; --muted:#5A6B60;
+    --h:'Cairo'; --b:'IBM Plex Sans Arabic';
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans Arabic',sans-serif; }
+  .wrap { max-width:1240px; margin:0 auto; padding:28px 16px 60px; }
+  h1 { font-family:'Cairo'; font-size:28px; margin:0 0 4px; }
+  .lead { color:var(--muted); margin:0 0 20px; }
+  /* controls */
+  @media (min-height: 760px) { .controls { position:sticky; top:0; z-index:5; } }
+  .controls { background:var(--bg); padding:12px 0; border-bottom:1px solid var(--border); margin-bottom:20px; display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
+  .controls label { display:flex; flex-direction:column; gap:4px; font-size:13px; color:var(--muted); }
+  select { font:inherit; font-size:15px; padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:#fff; min-width:200px; }
+  .pairs { display:flex; flex-wrap:wrap; gap:8px; }
+  .pairs button { font:inherit; font-size:13px; padding:8px 12px; border-radius:999px; border:1px solid var(--g6); background:#fff; color:var(--g6); cursor:pointer; }
+  .pairs button.on { background:var(--g6); color:#fff; }
+  /* preview */
+  .preview { display:grid; gap:20px; grid-template-columns: 340px 1fr; }
+  @media (max-width: 900px) { .preview { grid-template-columns:1fr; } }
+  .H { font-family:var(--h), sans-serif; } .B { font-family:var(--b), sans-serif; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:18px; }
+  .tag { font-family:'IBM Plex Sans Arabic'; font-size:12px; color:var(--muted); margin-bottom:10px; display:block; }
+  /* phone */
+  .phone { border:10px solid #1b241e; border-radius:36px; padding:18px 16px; background:#fff; }
+  .phone h3 { margin:0 0 4px; font-size:22px; }
+  .phone p { margin:0 0 14px; font-size:14px; color:var(--muted); line-height:1.6; }
+  .cats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+  .cat { background:var(--s2); border-radius:12px; padding:12px 4px; text-align:center; font-size:13px; }
+  .cat.sel { background:var(--g50); outline:2px solid var(--g6); }
+  .cat i { display:block; width:26px; height:26px; margin:0 auto 6px; border-radius:8px; background:var(--g5); opacity:.85; }
+  .field { border:1px solid var(--border); border-radius:10px; padding:10px; font-size:14px; color:var(--muted); margin-bottom:12px; min-height:60px; line-height:1.6; }
+  .btn { display:block; text-align:center; background:var(--g6); color:#fff; border-radius:10px; padding:13px; font-size:16px; font-weight:700; }
+  /* lockup */
+  .lockup { display:flex; align-items:center; gap:14px; }
+  .lockup svg { width:64px; height:64px; }
+  .lockup b { display:block; font-size:38px; font-weight:800; color:var(--g5); line-height:1.15; }
+  .lockup span { display:block; font-size:14px; color:var(--muted); }
+  /* kpis */
+  .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  @media (max-width:600px) { .kpis { grid-template-columns:repeat(2,1fr); } }
+  .kpi { background:var(--s2); border-radius:12px; padding:12px; }
+  .kpi .n { font-size:32px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .kpi .l { font-size:13px; color:var(--muted); }
+  .kpi .d { font-size:12px; }
+  .up { color:#16A34A; } .dn { color:#DC2626; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { text-align:right; font-weight:600; color:var(--muted); font-size:12px; padding:8px 6px; border-bottom:1px solid var(--border); }
+  td { padding:9px 6px; border-bottom:1px solid var(--s2); font-variant-numeric:tabular-nums; }
+  .pill { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12px; }
+  .p-r { background:#FDECEC; color:#B91C1C; } .p-a { background:#FDF3E2; color:#B45309; } .p-g { background:#E7F6EC; color:#15803D; }
+  .report h4 { margin:0 0 6px; font-size:20px; }
+  .report p { margin:0; font-size:15px; line-height:1.9; }
+  .right { display:grid; gap:20px; }
+  /* specimens */
+  h2.sec { font-family:'Cairo'; font-size:22px; margin:40px 0 6px; }
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
+  .spec { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px; cursor:pointer; transition:border-color .15s; }
+  .spec:hover { border-color:var(--g6); }
+  .spec .nm { font-family:'IBM Plex Sans Arabic'; font-size:13px; color:var(--muted); display:flex; justify-content:space-between; gap:8px; }
+  .spec .nm em { font-style:normal; color:var(--gold7); }
+  .spec .big { font-size:34px; font-weight:800; color:var(--g5); margin:6px 0 2px; line-height:1.3; }
+  .spec .txt { font-size:15px; line-height:1.8; margin:0 0 6px; }
+  .spec .num { font-size:15px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .spec .act { margin-top:10px; display:flex; gap:6px; }
+  .spec .act button { font:inherit; font-family:'IBM Plex Sans Arabic'; font-size:12px; border:1px solid var(--border); background:var(--s2); border-radius:8px; padding:4px 10px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>اختيار خطوط «بلّغ»</h1>
+  <p class="lead">اختار خط العناوين وخط النصوص، أو جرّب واحدة من التوليفات المقترحة. المعاينة بتتغير فوراً على شاشات حقيقية من النظام. كل الخطوط مجانية (رخصة OFL) ومن Google Fonts.</p>
+
+  <div class="controls">
+    <label>خط العناوين والأرقام <select id="hSel"></select></label>
+    <label>خط النصوص <select id="bSel"></select></label>
+    <div class="pairs" id="pairs"></div>
+  </div>
+
+  <div class="preview">
+    <div class="phone B">
+      <span class="tag">تطبيق المواطن — تقديم بلاغ</span>
+      <h3 class="H">بلاغ جديد</h3>
+      <p>اختار نوع المشكلة، وصوّرها، والموقع هيتحدد تلقائياً.</p>
+      <div class="cats">
+        <div class="cat"><i></i>قمامة</div>
+        <div class="cat sel"><i></i>تعدٍّ على أرض زراعية</div>
+        <div class="cat"><i></i>صرف صحي</div>
+        <div class="cat"><i></i>إنارة</div>
+        <div class="cat"><i></i>طرق</div>
+        <div class="cat"><i></i>مياه شرب</div>
+      </div>
+      <div class="field">بناء جديد على أرض زراعية بجوار المصرف، بدأ العمل فيه من يومين ليلاً.</div>
+      <div class="btn H">إرسال البلاغ</div>
+    </div>
+
+    <div class="right">
+      <div class="card">
+        <span class="tag">اللوجو</span>
+        <div class="lockup">
+          <div><b class="H">بلّغ</b><span class="B">منصة بلاغات محافظة الفيوم</span></div>
+          <svg viewBox="0 0 124 120"><g transform="translate(124 0) scale(-1 1)"><rect x="6" y="42" width="24" height="36" rx="9" fill="#1E8A3E"/><path d="M26 47 L72 26 V94 L26 73 Z" fill="#1E8A3E"/><rect x="70" y="14" width="16" height="92" rx="8" fill="#1E8A3E"/><path d="M34 74 L42 100 Q44 106 50 106 H54 Q60 106 58 100 L52 80 Z" fill="#1E8A3E"/><g fill="none" stroke="#F4A21D" stroke-width="7" stroke-linecap="round"><path d="M98 46 A18 18 0 0 1 98 74"/><path d="M106 32 A34 34 0 0 1 106 88"/></g></g></svg>
+        </div>
+      </div>
+
+      <div class="card">
+        <span class="tag">غرفة العمليات — المؤشرات</span>
+        <div class="kpis">
+          <div class="kpi"><div class="n H">1,284</div><div class="l B">بلاغ هذا الشهر</div><div class="d B up">↑ 12%</div></div>
+          <div class="kpi"><div class="n H">87%</div><div class="l B">الالتزام بمدد الحل</div><div class="d B up">↑ 4 نقاط</div></div>
+          <div class="kpi"><div class="n H">3.6 س</div><div class="l B">متوسط زمن الاستلام</div><div class="d B dn">↓ أبطأ 20 د</div></div>
+          <div class="kpi"><div class="n H">4.2</div><div class="l B">رضا المواطن من 5</div><div class="d B up">↑ 0.3</div></div>
+        </div>
+      </div>
+
+      <div class="card B">
+        <span class="tag">ترتيب الوحدات المحلية</span>
+        <table>
+          <thead><tr><th>#</th><th>الوحدة المحلية</th><th>المركز</th><th>البلاغات</th><th>الدرجة</th><th>الحالة</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>الوحدة المحلية بقرية (أ)</td><td>سنورس</td><td>142</td><td>91</td><td><span class="pill p-g">جيد</span></td></tr>
+            <tr><td>2</td><td>الوحدة المحلية بقرية (ب)</td><td>طامية</td><td>98</td><td>74</td><td><span class="pill p-a">متوسط</span></td></tr>
+            <tr><td>3</td><td>الوحدة المحلية بقرية (ج)</td><td>إطسا</td><td>203</td><td>52</td><td><span class="pill p-r">ضعيف</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card report">
+        <span class="tag">تقرير رسمي للمحافظ</span>
+        <h4 class="H">ملخص الأداء الأسبوعي — مركز إطسا</h4>
+        <p class="B">تلقت الوحدات المحلية بالمركز ٢٠٣ بلاغاً خلال الأسبوع، تم حل ١٢٨ منها في المدة المحددة. وسُجّل تأخر ملحوظ في بلاغات التعديات على الأراضي الزراعية، حيث بلغ متوسط زمن الاستلام ٩ ساعات مقابل ٤ ساعات مستهدفة، وتم تصعيد ١٧ بلاغاً لرئيس المركز.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="sec">عينات الخطوط</h2>
+  <p class="lead">اضغط «عناوين» أو «نصوص» على أي خط علشان تجرّبه فوق.</p>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+  const fonts = [
+    { f:'Cairo', note:'هندسي مستدير، واضح جداً، الأشهر في المواقع الحكومية', use:'عناوين' },
+    { f:'Baloo Bhaijaan 2', note:'مستدير وودود، الأقرب لروح خط لوجو المحافظة', use:'عناوين' },
+    { f:'Alexandria', note:'عصري وهندسي، فخم في العناوين الكبيرة', use:'عناوين' },
+    { f:'Readex Pro', note:'عربي ولاتيني متناسقين في عائلة واحدة، ممتاز للأرقام', use:'الاثنين' },
+    { f:'Noto Kufi Arabic', note:'كوفي رسمي ومتين، مناسب للهوية الحكومية', use:'عناوين' },
+    { f:'Changa', note:'كوفي مضغوط، بيوفّر مساحة في لوحات البيانات', use:'عناوين' },
+    { f:'El Messiri', note:'فيه لمسة تراثية أنيقة، أقل وضوحاً في الأحجام الصغيرة', use:'عناوين' },
+    { f:'Lalezar', note:'عريض جداً للافتات والشعارات فقط، وزن واحد', use:'شعار فقط' },
+    { f:'IBM Plex Sans Arabic', note:'مقروء جداً في الجداول والنصوص الصغيرة', use:'نصوص' },
+    { f:'Tajawal', note:'خفيف ونظيف، شائع في التطبيقات', use:'نصوص' },
+    { f:'Almarai', note:'بسيط وواضح جداً على الموبايل', use:'نصوص' },
+    { f:'Noto Sans Arabic', note:'محايد، بيدعم كل الحروف والتشكيل، آمن للتقارير', use:'نصوص' },
+  ];
+  const pairs = [
+    { name:'الحالي: Cairo + Plex', h:'Cairo', b:'IBM Plex Sans Arabic' },
+    { name:'ودود: Baloo + Tajawal', h:'Baloo Bhaijaan 2', b:'Tajawal' },
+    { name:'عائلة واحدة: Readex Pro', h:'Readex Pro', b:'Readex Pro' },
+    { name:'عصري: Alexandria + Almarai', h:'Alexandria', b:'Almarai' },
+    { name:'رسمي: Noto Kufi + Noto Sans', h:'Noto Kufi Arabic', b:'Noto Sans Arabic' },
+  ];
+  const root = document.documentElement, hSel = document.getElementById('hSel'), bSel = document.getElementById('bSel');
+  fonts.forEach(x => { hSel.add(new Option(x.f, x.f)); bSel.add(new Option(x.f, x.f)); });
+
+  function apply(h, b) {
+    root.style.setProperty('--h', `'${h}'`); root.style.setProperty('--b', `'${b}'`);
+    hSel.value = h; bSel.value = b;
+    document.querySelectorAll('.pairs button').forEach(btn => btn.classList.toggle('on', btn.dataset.h === h && btn.dataset.b === b));
+    try { localStorage.setItem('fontPick', JSON.stringify({ h, b })); } catch (e) {}
+  }
+  document.getElementById('pairs').innerHTML = pairs.map(p => `<button data-h="${p.h}" data-b="${p.b}">${p.name}</button>`).join('');
+  document.getElementById('pairs').addEventListener('click', e => { const t = e.target.closest('button'); if (t) apply(t.dataset.h, t.dataset.b); });
+  hSel.onchange = () => apply(hSel.value, bSel.value);
+  bSel.onchange = () => apply(hSel.value, bSel.value);
+
+  document.getElementById('grid').innerHTML = fonts.map(x => `
+    <div class="spec" style="font-family:'${x.f}'">
+      <div class="nm"><span>${x.f}</span><em>${x.use}</em></div>
+      <div class="big">بلّغ</div>
+      <p class="txt">صوّر المشكلة وابعتها، والوحدة المحلية هتستلمها فوراً. ابجد هوز حطي كلمن.</p>
+      <div class="num">0123456789 · ٠١٢٣٤٥٦٧٨٩ · Ballegh</div>
+      <div class="nm" style="margin-top:6px">${x.note}</div>
+      <div class="act"><button data-h="${x.f}">عناوين</button><button data-b="${x.f}">نصوص</button></div>
+    </div>`).join('');
+  document.getElementById('grid').addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t) return;
+    apply(t.dataset.h || hSel.value, t.dataset.b || bSel.value);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  let saved = null; try { saved = JSON.parse(localStorage.getItem('fontPick')); } catch (e) {}
+  apply(saved?.h || 'Readex Pro', saved?.b || 'Readex Pro');
+</script>
+</body>
+</html>

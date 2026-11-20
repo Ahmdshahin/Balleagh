@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — تقرير رسمي</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  body { background:#E6ECE8; }
+  .paper { width:210mm; min-height:297mm; margin:20px auto; background:#fff; padding:16mm 15mm; box-shadow:var(--sh-lg); }
+  .lh { display:flex; align-items:center; gap:12px; border-bottom:3px solid var(--green-600); padding-bottom:10px; }
+  .lh img.gov { height:62px; }
+  .lh img.pl { height:46px; }
+  .lh .t { flex:1; text-align:center; }
+  .lh .t b { display:block; font-size:18px; }
+  .meta { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin:8px 0 14px; }
+  h2 { font-size:17px; margin:16px 0 8px; color:var(--green-700); }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th, td { border:1px solid var(--border); padding:5px 7px; text-align:right; font-variant-numeric:tabular-nums; }
+  th { background:var(--surface-2); font-weight:600; }
+  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .tiles div { border:1px solid var(--border); border-radius:10px; padding:8px 10px; }
+  .tiles b { display:block; font-size:20px; }
+  .tiles span { font-size:11px; color:var(--muted); }
+  .foot { margin-top:18px; font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:8px; display:flex; justify-content:space-between; gap:12px; }
+  .sig { display:grid; grid-template-columns:1fr 1fr; gap:30px; margin-top:30px; font-size:13px; text-align:center; }
+  .sig div { border-top:1px dashed #999; padding-top:6px; }
+  .bar { position:sticky; top:0; background:#16211A; color:#fff; padding:10px 16px; display:flex; gap:10px; align-items:center; z-index:5; }
+  .imgs { display:flex; gap:8px; } .imgs img { width:150px; height:110px; object-fit:cover; border-radius:6px; border:1px solid var(--border); }
+  @media print { body { background:#fff; } .paper { margin:0; box-shadow:none; width:auto; min-height:0; padding:0; } @page { size:A4; margin:14mm; } }
+</style>
+</head>
+<body>
+<div class="bar no-print"><b>معاينة التقرير</b><span class="spacer"></span><span class="small" style="opacity:.75">احفظه PDF من نافذة الطباعة</span><button class="btn sm" onclick="print()">طباعة / حفظ PDF</button></div>
+<div class="paper" id="paper">جاري إعداد التقرير…</div>
+<script type="module">
+import { api, meta, useUser, esc, fmt, dur, dt, catAr, statusAr, priorityAr, ACTION_AR, ROLE_AR, BAND_AR } from '/js/common.js';
+useUser('gov');
+await meta();
+const q = new URLSearchParams(location.search);
+const days = Number(q.get('days')) || 30;
+const now = new Date();
+const letterhead = (title, sub) => `<div class="lh"><img class="gov" src="/brand/fayoum-governorate-logo.png" alt="محافظة الفيوم"><div class="t"><b>${esc(title)}</b><span class="small muted">${esc(sub)}</span></div><img class="pl" src="/brand/ballegh-mark.svg" alt="بلّغ"></div>
+  <div class="meta"><span>تاريخ الإصدار: ${now.toLocaleString('ar-EG-u-nu-latn')}</span><span>صادر من منصة «بلّغ» — غرفة العمليات بديوان عام المحافظة</span></div>`;
+const footer = async () => { const v = await api('/api/audit/verify'); return `<div class="foot"><span>بيانات هذا التقرير مستخرجة من سجل التدقيق غير القابل للتعديل (${fmt(v.rows)} إجراء — سلامة السلسلة: ${v.ok ? 'سليمة ✓' : 'غير سليمة ✗'}).</span><span>نسخة عرض تجريبية</span></div>`; };
+const P = document.getElementById('paper');
+
+if (q.get('id')) {
+  const r = await api('/api/reports/' + q.get('id'));
+  P.innerHTML = `${letterhead('تقرير بلاغ رسمي', `بلاغ رقم ${r.code}`)}
+    <table><tr><th>رقم البلاغ</th><td class="num">${esc(r.code)}</td><th>التصنيف</th><td>${esc(catAr(r.category))}</td></tr>
+      <tr><th>الحالة</th><td>${esc(statusAr(r.status))}</td><th>الأولوية</th><td>${esc(priorityAr(r.priority))}</td></tr>
+      <tr><th>الموقع</th><td>${esc(r.villageName || r.noUnitArea || '')} — ${esc(r.centerName || '')}</td><th>الإحداثيات</th><td class="num" dir="ltr">${r.location[1].toFixed(5)}, ${r.location[0].toFixed(5)}</td></tr>
+      <tr><th>الوحدة المختصة</th><td>${esc(r.unitName || 'غرفة العمليات')}</td><th>تاريخ البلاغ</th><td class="num">${dt(r.createdAt)}</td></tr>
+      <tr><th>موعد الاستلام</th><td class="num">${dt(r.ackDueAt)}</td><th>موعد الحل</th><td class="num">${dt(r.resolveDueAt)}</td></tr>
+      ${r.duplicateCount ? `<tr><th>بلاغات مكررة</th><td colspan="3">${r.duplicateCount} بلاغ إضافي عن نفس المشكلة</td></tr>` : ''}</table>
+    ${r.description ? `<h2>وصف المواطن</h2><p style="font-size:13px">${esc(r.description)}</p>` : ''}
+    <div class="imgs">${(r.media || []).filter(m => m.kind === 'photo').slice(0, 3).map(m => `<img src="${esc(m.url)}">`).join('')}${r.resolution ? `<img src="${esc(r.resolution.photo)}" title="بعد الحل">` : ''}</div>
+    ${r.resolution ? `<h2>تقرير الحل</h2><table><tr><th>الإجراء</th><td>${esc(r.resolution.actionTaken || '')}</td></tr><tr><th>الجهة المنفذة</th><td>${esc(r.resolution.executingParty || '')}</td></tr><tr><th>التكلفة</th><td>${r.resolution.cost ? fmt(r.resolution.cost) + ' ج.م' : '—'}</td></tr><tr><th>بُعد صورة الحل عن الموقع</th><td>${r.resolution.distanceM} م</td></tr>${r.resolution.notes ? `<tr><th>ملاحظات</th><td>${esc(r.resolution.notes)}</td></tr>` : ''}</table>` : ''}
+    ${r.rejection ? `<h2>الرفض</h2><p style="font-size:13px">${esc(r.rejection.reason)}</p>` : ''}
+    <h2>السجل الزمني الكامل</h2>
+    <table><tr><th>#</th><th>التاريخ والوقت</th><th>الإجراء</th><th>بواسطة</th><th>ملاحظة</th></tr>
+      ${r.events.map((e, i) => `<tr><td>${i + 1}</td><td class="num" style="white-space:nowrap">${dt(e.at)}</td><td>${esc(ACTION_AR[e.action] || e.action)}${e.to ? ' ← ' + esc(statusAr(e.to)) : ''}</td><td>${esc(e.actorName)}${e.role && e.role !== 'SYSTEM' ? ` (${esc(ROLE_AR[e.role] || '')})` : ''}</td><td>${esc(e.note || '')}</td></tr>`).join('')}</table>
+    <div class="sig"><div>مدير غرفة العمليات</div><div>اعتماد</div></div>${await footer()}`;
+} else {
+  const K = await api(`/api/kpis?days=${days}`);
+  const heads = await api('/api/users?role=UNIT_HEAD');
+  const unitId = q.get('unit');
+  const units = unitId ? K.units.filter(u => u.id === unitId) : K.units.slice().sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  const o = unitId ? units[0] : K.overall;
+  const title = unitId ? `تقرير أداء — ${units[0].name}` : 'تقرير أداء الوحدات المحلية';
+  P.innerHTML = `${letterhead(title, `الفترة: آخر ${days} يوم`)}
+    <div class="tiles">
+      <div><b>${fmt(unitId ? o.total : o.allTotal)}</b><span>إجمالي البلاغات</span></div>
+      <div><b>${fmt(o.k3)}%</b><span>الالتزام بمدد الحل</span></div>
+      <div><b>${o.k1 == null ? '—' : dur(o.k1 * 3_600_000)}</b><span>متوسط زمن الاستلام</span></div>
+      <div><b>${fmt(o.k6, 1)} / 5</b><span>رضا المواطن</span></div>
+      <div><b>${fmt(o.open)}</b><span>مفتوح</span></div>
+      <div><b>${fmt(o.overdue)}</b><span>متأخر</span></div>
+      <div><b>${fmt(o.k4)}%</b><span>نسبة الحل</span></div>
+      <div><b>${o.score ?? '—'}</b><span>درجة الأداء</span></div>
+    </div>
+    ${!unitId ? `<h2>ملخص</h2><p style="font-size:13px;line-height:1.9">تلقت المنصة ${fmt(o.allTotal)} بلاغاً خلال آخر ${days} يوم، منها ${fmt(o.duplicates)} بلاغ مكرر تم دمجه. بلغت نسبة الالتزام بمدد الحل ${fmt(o.k3)}% ومتوسط رضا المواطنين ${fmt(o.k6, 1)} من 5. يوجد ${K.units.filter(u => u.band === 'poor').length} وحدات محلية تحت الحد الأدنى للأداء: ${K.units.filter(u => u.band === 'poor').map(u => esc(u.name)).join('، ') || '—'}.</p>` : ''}
+    <h2>${unitId ? 'المؤشرات التفصيلية' : 'ترتيب الوحدات المحلية'}</h2>
+    <table><tr><th>#</th><th>الوحدة</th><th>رئيس الوحدة</th><th>البلاغات</th><th>متأخر</th><th>الالتزام %</th><th>الاستلام</th><th>الرضا</th><th>الرفض %</th><th>الدرجة</th><th>التقييم</th></tr>
+      ${units.map(u => `<tr><td>${u.rank ?? '—'}</td><td>${esc(u.name)}</td><td>${esc(heads.find(h => h.unitId === u.id)?.name || '')}</td><td>${u.total}</td><td>${u.overdue}</td><td>${fmt(u.k3)}</td><td>${u.k1 == null ? '—' : dur(u.k1 * 3_600_000)}</td><td>${fmt(u.k6, 1)}</td><td>${fmt(u.k7)}</td><td><b>${u.score ?? '—'}</b></td><td>${BAND_AR[u.band]}</td></tr>`).join('')}</table>
+    ${!unitId ? `<h2>المشاكل حسب النوع</h2><table><tr>${K.byCategory.slice(0, 7).map(c => `<th>${esc(c.ar)}</th>`).join('')}</tr><tr>${K.byCategory.slice(0, 7).map(c => `<td>${c.count}</td>`).join('')}</tr></table>` : ''}
+    <div class="sig"><div>مدير غرفة العمليات</div><div>يُعتمد،،، المحافظ</div></div>${await footer()}`;
+}
+if (q.get('print') === '1') setTimeout(print, 600);
+</script>
+</body>
+</html>

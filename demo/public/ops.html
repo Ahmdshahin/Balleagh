@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — غرفة العمليات</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  .kbar { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; padding:10px 14px; background:var(--bg); border-bottom:1px solid var(--border); }
+  .kbar .kpi { padding:8px 12px; }
+  .kbar .kpi .v { font-size:22px; }
+  .main { flex:1; display:grid; grid-template-columns:380px 1fr 250px; min-height:0; }
+  .side { background:var(--surface); border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
+  .side.left { border-left:0; border-right:1px solid var(--border); overflow-y:auto; padding:14px; display:grid; align-content:start; gap:14px; }
+  .side .head { padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  .side .head h3 { margin:0; font-size:15px; }
+  .list { overflow-y:auto; flex:1; padding:6px; }
+  #map { position:relative; }
+  .live { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#15803D; font-weight:600; }
+  .live::before { content:''; width:8px; height:8px; border-radius:50%; background:#16A34A; box-shadow:0 0 0 0 rgb(22 163 74/.6); animation:pulse 1.6s infinite; }
+  @keyframes pulse { 70% { box-shadow:0 0 0 8px rgb(22 163 74/0); } 100% { box-shadow:0 0 0 0 rgb(22 163 74/0); } }
+  .grp h4 { margin:0 0 6px; font-size:12px; color:var(--muted); font-weight:600; }
+  .seg { display:flex; background:var(--surface-2); border-radius:10px; padding:3px; gap:3px; }
+  .seg button { flex:1; border:0; background:none; border-radius:8px; padding:6px 4px; font-size:12px; cursor:pointer; color:var(--muted); }
+  .seg button.on { background:var(--surface); color:var(--text); font-weight:600; box-shadow:var(--sh-sm); }
+  .chk { display:flex; align-items:center; gap:8px; font-size:13px; padding:3px 0; cursor:pointer; }
+  .legend { display:grid; gap:4px; font-size:12px; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-inline-end:6px; vertical-align:middle; }
+  .legend i.sq { border-radius:3px; }
+  select.input { padding:7px 10px; font-size:13px; }
+  .back { display:flex; align-items:center; gap:6px; border:0; background:none; color:var(--primary); cursor:pointer; font-weight:600; padding:0; }
+  .search { margin:8px 8px 0; }
+  .newpill { position:absolute; top:12px; right:50%; transform:translateX(50%); z-index:5; background:#16211A; color:#fff; padding:8px 16px; border-radius:999px; font-size:13px; box-shadow:var(--sh-lg); cursor:pointer; }
+  @media (max-width:1200px) { .main { grid-template-columns:340px 1fr; } .side.left { display:none; } .kbar { grid-template-columns:repeat(4,1fr); } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span id="brand"></span>
+  
+  <span class="live">مباشر</span>
+  <span class="spacer"></span>
+  <div class="seg" id="period" style="width:200px"><button data-d="7">7 أيام</button><button data-d="30" class="on">30 يوم</button><button data-d="60">60 يوم</button></div>
+  <select class="input" id="role" style="width:auto"><option value="ops-sup">مشرف الغرفة</option><option value="ops-rev">مراجع الغرفة</option></select>
+  <button class="icon-btn" id="sound" title="صوت التنبيه"></button>
+  <button class="btn secondary sm" id="social">+ بلاغ سوشيال ميديا</button>
+  <button class="btn ghost sm" id="auditBtn">سجل التدقيق</button>
+
+</header>
+<div class="kbar" id="kbar"></div>
+<div class="main">
+  <aside class="side" id="right">
+    <div id="listView" style="display:flex;flex-direction:column;min-height:0;flex:1">
+      <div class="head"><h3>البلاغات</h3><span class="muted small num" id="count"></span><span class="spacer"></span>
+        <select class="input" id="sort" style="width:auto"><option value="new">الأحدث</option><option value="late">الأكثر تأخيراً</option><option value="prio">الأولوية</option></select></div>
+      <input class="input search" id="q" placeholder="بحث برقم البلاغ أو القرية…">
+      <div class="list" id="list"></div>
+    </div>
+    <div id="detailView" class="hidden" style="overflow-y:auto;flex:1"></div>
+  </aside>
+  <div id="map"></div>
+  <aside class="side left">
+    <div class="grp"><h4>الخريطة الأساسية</h4><div class="seg" id="base"><button data-b="osm" class="on">خريطة</button><button data-b="sat">أقمار صناعية</button></div></div>
+    <div class="grp"><h4>الطبقات</h4>
+      <label class="chk"><input type="checkbox" id="lyPts" checked> نقاط البلاغات</label>
+      <div class="seg" id="colorBy" style="margin:4px 0 6px"><button data-c="status" class="on">حسب الحالة</button><button data-c="priority">حسب الأولوية</button></div>
+      <label class="chk"><input type="checkbox" id="lyHeat"> الخريطة الحرارية</label>
+      <label class="chk"><input type="checkbox" id="lyUnits" checked> أداء الوحدات المحلية</label>
+    </div>
+    <div class="grp"><h4>الفلاتر</h4><div class="stack" style="gap:8px">
+      <select class="input" id="fCenter"><option value="">كل المراكز</option></select>
+      <select class="input" id="fUnit"><option value="">كل الوحدات</option></select>
+      <select class="input" id="fCat"><option value="">كل التصنيفات</option></select>
+      <select class="input" id="fPrio"><option value="">كل الأولويات</option></select>
+      <select class="input" id="fStatus"><option value="">كل الحالات</option><option value="open">المفتوحة فقط</option><option value="late">المتأخرة فقط</option><option value="escalated">المُصعّدة</option><option value="review">بانتظار مراجعة الغرفة</option></select>
+      <select class="input" id="fSrc"><option value="">كل المصادر</option><option value="app">تطبيق المواطن</option><option value="social">سوشيال ميديا</option></select>
+      <button class="btn ghost sm" id="clear">مسح الفلاتر</button></div></div>
+    <div class="grp"><h4>دليل الألوان</h4><div class="legend" id="legend"></div></div>
+  </aside>
+</div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+import { mountNav, api, meta, useUser, toast, esc, ago, fmt, dur, statusBadge, priorityBadge, slaBar, catAr, statusAr, priorityAr, chime, modal, brandHtml, bandBadge, STATUS_COLOR, PRIORITY_COLOR, BAND_COLOR, BAND_AR, dt } from '/js/common.js';
+import { icon } from '/js/icons.js';
+import { createMap, setBase, addUnits, addReports, colorPointsBy, reportsToFC, hoverUnits } from '/js/map.js';
+import { renderDetail, doAction, askReason } from '/js/detail.js';
+
+document.getElementById('brand').innerHTML = brandHtml(); mountNav('ops');
+const M = await meta();
+let userId = localStorage.getItem('ballegh:ops') || 'ops-sup';
+useUser(userId);
+document.getElementById('role').value = userId;
+document.getElementById('role').onchange = e => { userId = e.target.value; localStorage.setItem('ballegh:ops', userId); useUser(userId); toast(`الدور الحالي: ${e.target.selectedOptions[0].text}`); };
+
+let days = 30, reports = [], kpis = null, geo = null, selected = null, sound = true, colorMode = 'status';
+const OPEN = ['NEW', 'ROUTED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'PENDING_BUDGET', 'PARTIALLY_RESOLVED', 'REOPENED', 'NOT_COMPETENT', 'OPS_QUEUE'];
+const PRANK = { CRITICAL: 0, URGENT: 1, NORMAL: 2, LOW: 3 };
+
+// --- filters setup ---
+geo = await api('/api/geo');
+const fill = (id, items) => document.getElementById(id).insertAdjacentHTML('beforeend', items.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join(''));
+fill('fCenter', geo.centers.features.map(f => [f.properties.id, f.properties.name]));
+fill('fUnit', geo.units.features.map(f => [f.properties.id, f.properties.name]));
+fill('fCat', M.categories.map(c => [c.code, c.ar]));
+fill('fPrio', Object.entries(M.priorityAr));
+document.getElementById('legend').innerHTML = legendHtml();
+
+function legendHtml() {
+  const pts = colorMode === 'status'
+    ? [['ROUTED', 'جديد / محوّل'], ['ACKNOWLEDGED', 'تم الاستلام'], ['IN_PROGRESS', 'جاري العمل'], ['PENDING_BUDGET', 'ميزانية / جزئي'], ['RESOLVED', 'تم الحل'], ['CLOSED', 'مغلق'], ['REJECTED', 'مرفوض'], ['REOPENED', 'معاد فتحه'], ['OPS_QUEUE', 'لدى الغرفة']].map(([k, t]) => `<div><i style="background:${STATUS_COLOR[k]}"></i>${t}</div>`)
+    : Object.entries(PRIORITY_COLOR).map(([k, c]) => `<div><i style="background:${c}"></i>${priorityAr(k)}</div>`);
+  return pts.join('') + '<div style="height:6px"></div>' + Object.entries(BAND_COLOR).map(([k, c]) => `<div><i class="sq" style="background:${c}"></i>وحدة: ${BAND_AR[k]}</div>`).join('');
+}
+
+// --- map ---
+const map = createMap('map');
+await new Promise(r => map.on('load', r));
+addUnits(map, geo.units);
+addReports(map, reportsToFC([]));
+hoverUnits(map, p => {
+  const u = kpis?.units.find(x => x.id === p.id);
+  return `<b>${esc(p.name)}</b><div class="small muted">${esc(p.centerName)}</div>${u ? `<div class="small" style="margin-top:4px">${bandBadge(u.band, u.score)}</div><div class="tiny muted num">${u.total} بلاغ · ${u.open} مفتوح · ${u.overdue} متأخر${u.rank ? ` · الترتيب ${u.rank}/${u.rankOf}` : ''}</div>` : ''}`;
+});
+map.on('click', 'pts', e => select(e.features[0].properties.id, false));
+map.on('mouseenter', 'pts', () => map.getCanvas().style.cursor = 'pointer');
+map.on('mouseleave', 'pts', () => map.getCanvas().style.cursor = '');
+map.on('click', 'units-fill', e => { if (!map.queryRenderedFeatures(e.point, { layers: ['pts'] }).length) { document.getElementById('fUnit').value = e.features[0].properties.id; refresh(); } });
+
+// --- data ---
+async function loadAll() {
+  [reports, kpis] = await Promise.all([api(`/api/reports?days=${days}`), api(`/api/kpis?days=${days}`)]);
+  paintUnits(); refresh(); renderKpis();
+}
+function paintUnits() {
+  const fc = structuredClone(geo.units);
+  fc.features.forEach(f => { const u = kpis.units.find(x => x.id === f.properties.id); f.properties.band = u?.band || 'insufficient'; f.properties.score = u?.score ?? -1; });
+  map.getSource('units').setData(fc);
+}
+function filtered() {
+  const v = id => document.getElementById(id).value;
+  const q = v('q').trim();
+  const now = Date.now();
+  return reports.filter(r =>
+    (!v('fCenter') || r.centerId === v('fCenter')) && (!v('fUnit') || r.unitId === v('fUnit')) &&
+    (!v('fCat') || r.category === v('fCat')) && (!v('fPrio') || r.priority === v('fPrio')) && (!v('fSrc') || r.source === v('fSrc')) &&
+    (!v('fStatus') || (v('fStatus') === 'open' ? OPEN.includes(r.status) : v('fStatus') === 'late' ? OPEN.includes(r.status) && r.status !== 'PENDING_BUDGET' && now > r.resolveDueAt : v('fStatus') === 'escalated' ? r.escalation >= 2 && OPEN.includes(r.status) : ['RESOLVED', 'REJECTED', 'NOT_COMPETENT', 'OPS_QUEUE'].includes(r.status))) &&
+    (!q || r.code.includes(q) || (r.villageName || '').includes(q) || (r.unitName || '').includes(q)));
+}
+function refresh() {
+  const list = filtered();
+  map.getSource('reports').setData(reportsToFC(list));
+  const s = document.getElementById('sort').value, now = Date.now();
+  const sorted = list.slice().sort(s === 'late' ? (a, b) => (OPEN.includes(b.status) ? now - b.resolveDueAt : -1e15) - (OPEN.includes(a.status) ? now - a.resolveDueAt : -1e15)
+    : s === 'prio' ? (a, b) => PRANK[a.priority] - PRANK[b.priority] || b.createdAt - a.createdAt : (a, b) => b.createdAt - a.createdAt);
+  document.getElementById('count').textContent = `${fmt(list.length)} بلاغ`;
+  document.getElementById('list').innerHTML = sorted.slice(0, 150).map(itemHtml).join('') || '<div class="muted small" style="padding:16px">لا توجد بلاغات بهذه الفلاتر</div>';
+}
+function itemHtml(r) {
+  return `<div class="ritem ${selected === r.id ? 'on' : ''}" data-id="${r.id}"><img src="${esc(r.thumb || '/img/placeholder/other.svg')}" alt="" loading="lazy">
+    <div><div class="row"><span class="t">${esc(catAr(r.category))}</span><span class="spacer"></span>${priorityBadge(r.priority)}</div>
+    <div class="s">${esc(r.villageName || r.noUnitArea || '')} · ${esc(r.unitName || 'غرفة العمليات')}</div>
+    <div class="row" style="margin-top:3px">${statusBadge(r.status)}${r.duplicateCount ? `<span class="badge plain" style="background:#FEF3C7;color:#92400E">×${r.duplicateCount + 1}</span>` : ''}${r.source === 'social' ? '<span class="badge plain" style="background:#DBEAFE;color:#1D4ED8">سوشيال</span>' : ''}${r.escalation >= 3 ? '<span class="badge plain" style="background:#FDECEC;color:#B91C1C">مُصعّد</span>' : ''}<span class="spacer"></span><span class="tiny muted">${ago(r.createdAt)}</span></div>
+    ${OPEN.includes(r.status) ? `<div style="margin-top:4px">${slaBar(r)}</div>` : ''}</div></div>`;
+}
+document.getElementById('list').addEventListener('click', e => { const it = e.target.closest('.ritem'); if (it) select(it.dataset.id, true); });
+['fCenter', 'fUnit', 'fCat', 'fPrio', 'fStatus', 'fSrc', 'sort'].forEach(id => document.getElementById(id).onchange = refresh);
+document.getElementById('q').oninput = refresh;
+document.getElementById('clear').onclick = () => { ['fCenter', 'fUnit', 'fCat', 'fPrio', 'fStatus', 'fSrc', 'q'].forEach(id => document.getElementById(id).value = ''); refresh(); };
+
+function renderKpis() {
+  const o = kpis.overall;
+  const tiles = [
+    ['بلاغات الفترة', fmt(o.allTotal), `${fmt(o.duplicates)} مكرر مدموج`],
+    ['مفتوحة الآن', fmt(o.open), `${fmt(o.opsQueue)} لدى الغرفة`],
+    ['متأخرة', fmt(o.overdue), 'تجاوزت مدة الحل', o.overdue ? 'down' : ''],
+    ['الالتزام بمدد الحل', o.k3 == null ? '—' : fmt(o.k3) + '%', 'من البلاغات المحلولة'],
+    ['متوسط زمن الاستلام', o.k1 == null ? '—' : dur(o.k1 * 3_600_000), 'من التوجيه للاستلام'],
+    ['رضا المواطن', o.k6 == null ? '—' : fmt(o.k6, 1) + ' / 5', `${fmt(o.ratingsCount)} تقييم`],
+    ['وحدات ضعيفة', fmt(kpis.units.filter(u => u.band === 'poor').length), `من ${kpis.units.length} وحدة`, kpis.units.some(u => u.band === 'poor') ? 'down' : ''],
+  ];
+  document.getElementById('kbar').innerHTML = tiles.map(([l, v, d, c]) => `<div class="kpi"><div class="l">${l}</div><div class="v ${c || ''}">${v}</div><div class="tiny muted">${d}</div></div>`).join('');
+}
+
+// --- detail ---
+async function select(id, fly) {
+  selected = id;
+  document.getElementById('listView').classList.add('hidden');
+  const dv = document.getElementById('detailView'); dv.classList.remove('hidden');
+  const r = await renderDetail(dv, id, {
+    header: `<button class="back" id="back">${icon('back', 18)} رجوع للقائمة</button>`,
+    actions: opsActions, onAction,
+  });
+  dv.querySelector('#back').onclick = closeDetail;
+  if (fly) map.flyTo({ center: r.location, zoom: Math.max(map.getZoom(), 13.5) });
+  pulseAt(r.location);
+}
+function closeDetail() { selected = null; document.getElementById('detailView').classList.add('hidden'); document.getElementById('listView').classList.remove('hidden'); refresh(); }
+let pulse;
+function pulseAt(lnglat) { pulse?.remove(); const el = document.createElement('div'); el.style.cssText = 'width:28px;height:28px;border-radius:50%;border:3px solid #16211A;box-shadow:0 0 0 4px rgb(255 255 255/.8)'; pulse = new maplibregl.Marker({ element: el }).setLngLat(lnglat).addTo(map); }
+
+function opsActions(r) {
+  const b = (act, label, cls = 'ghost') => `<button class="btn sm ${cls}" data-act="${act}">${label}</button>`;
+  const out = [];
+  if (r.status === 'RESOLVED') out.push(b('ops_accept', 'قبول الحل وإغلاق', ''), b('ops_return', 'إرجاع للوحدة', 'danger'));
+  if (r.status === 'REJECTED') out.push(b('confirm_reject', 'تأكيد الرفض', ''), b('override_reject', 'نقض الرفض وإعادة الفتح', 'danger'));
+  if (['NOT_COMPETENT', 'OPS_QUEUE', 'ROUTED'].includes(r.status)) out.push(b('reroute', 'توجيه لوحدة', r.status === 'ROUTED' ? 'ghost' : ''));
+  if (OPEN.includes(r.status) || r.status === 'RESOLVED') out.push(b('set_priority', 'تغيير الأولوية'));
+  if (OPEN.includes(r.status)) out.push(b('set_category', 'تغيير التصنيف'));
+  out.push(b('field_visit', 'تسجيل زيارة ميدانية'));
+  out.push(`<button class="btn sm ghost" onclick="window.open('/report.html?id=${r.id}','_blank')">تقرير PDF</button>`);
+  return out.join('');
+}
+async function onAction(act, r) {
+  try {
+    let body = {};
+    if (['ops_return', 'override_reject'].includes(act)) { const reason = await askReason(act === 'ops_return' ? 'سبب إرجاع الحل' : 'سبب نقض الرفض'); if (!reason) return; body.reason = reason; }
+    if (act === 'reroute') {
+      const v = await modal({ title: 'توجيه البلاغ لوحدة محلية', body: `<select class="input" id="u">${geo.units.features.map(f => `<option value="${f.properties.id}" ${f.properties.id === r.unitId ? 'selected' : ''}>${esc(f.properties.name)} — ${esc(f.properties.centerName)}</option>`).join('')}</select>`, actions: [{ label: 'توجيه', onClick: bg => bg.querySelector('#u').value }, { label: 'إلغاء', cls: 'ghost' }] });
+      if (!v) return; body.unitId = v;
+    }
+    if (act === 'set_priority') {
+      const v = await modal({ title: 'تغيير الأولوية', body: `<select class="input" id="p">${Object.entries(M.priorityAr).map(([k, t]) => `<option value="${k}" ${k === r.priority ? 'selected' : ''}>${t}</option>`).join('')}</select><div class="tiny muted">تغيير الأولوية بيعيد حساب مدد الاستلام والحل.</div>`, actions: [{ label: 'حفظ', onClick: bg => bg.querySelector('#p').value }, { label: 'إلغاء', cls: 'ghost' }] });
+      if (!v) return; body.priority = v;
+    }
+    if (act === 'set_category') {
+      const v = await modal({ title: 'تغيير التصنيف', body: `<select class="input" id="c">${M.categories.map(c => `<option value="${c.code}" ${c.code === r.category ? 'selected' : ''}>${c.ar}</option>`).join('')}</select>`, actions: [{ label: 'حفظ', onClick: bg => bg.querySelector('#c').value }, { label: 'إلغاء', cls: 'ghost' }] });
+      if (!v) return; body.category = v;
+    }
+    if (act === 'field_visit') {
+      const v = await modal({ title: 'تسجيل زيارة ميدانية', body: `<div class="seg" id="o"><button data-o="match" class="on">مطابق</button><button data-o="mismatch">غير مطابق</button></div><label class="field"><span>ملاحظات</span><textarea class="input" id="n"></textarea></label>`,
+        actions: [{ label: 'حفظ', onClick: bg => ({ outcome: bg.querySelector('#o .on').dataset.o, note: bg.querySelector('#n').value }) }, { label: 'إلغاء', cls: 'ghost' }] });
+      if (!v) return; body = v;
+    }
+    await doAction(r, act, body);
+    select(r.id, false);
+  } catch (e) { toast(e.message, 'err'); }
+}
+document.addEventListener('click', e => { const s = e.target.closest('.seg#o button'); if (s) { s.parentElement.querySelectorAll('button').forEach(x => x.classList.remove('on')); s.classList.add('on'); } });
+
+// --- controls ---
+document.getElementById('period').onclick = e => { const b = e.target.closest('button'); if (!b) return; days = Number(b.dataset.d); document.querySelectorAll('#period button').forEach(x => x.classList.toggle('on', x === b)); loadAll(); };
+document.getElementById('base').onclick = e => { const b = e.target.closest('button'); if (!b) return; setBase(map, b.dataset.b); document.querySelectorAll('#base button').forEach(x => x.classList.toggle('on', x === b)); };
+document.getElementById('colorBy').onclick = e => { const b = e.target.closest('button'); if (!b) return; colorMode = b.dataset.c; colorPointsBy(map, colorMode); document.querySelectorAll('#colorBy button').forEach(x => x.classList.toggle('on', x === b)); document.getElementById('legend').innerHTML = legendHtml(); };
+const vis = (ids, on) => ids.forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
+document.getElementById('lyPts').onchange = e => vis(['pts', 'pts-halo'], e.target.checked);
+document.getElementById('lyHeat').onchange = e => vis(['heat'], e.target.checked);
+document.getElementById('lyUnits').onchange = e => vis(['units-fill'], e.target.checked);
+const soundBtn = document.getElementById('sound');
+const paintSound = () => soundBtn.innerHTML = icon(sound ? 'volume' : 'mute', 18);
+soundBtn.onclick = () => { sound = !sound; paintSound(); if (sound) chime(); };
+paintSound();
+
+// --- social media manual entry ---
+document.getElementById('social').onclick = async () => {
+  let picked = null, mini;
+  const bg = modal({ title: 'إدخال بلاغ من السوشيال ميديا', body: `
+    <label class="field"><span>رابط المنشور</span><input class="input" id="sUrl" dir="ltr" placeholder="https://facebook.com/…"></label>
+    <label class="field"><span>التصنيف</span><select class="input" id="sCat">${M.categories.map(c => `<option value="${c.code}">${c.ar}</option>`).join('')}</select></label>
+    <label class="field"><span>الوصف</span><textarea class="input" id="sDesc"></textarea></label>
+    <label class="field"><span>لقطة شاشة / صورة</span><input type="file" id="sImg" accept="image/*" class="input"></label>
+    <div class="field"><span>حدّد الموقع على الخريطة</span><div id="sMap" style="height:220px;border-radius:12px;overflow:hidden"></div><div class="tiny muted" id="sLoc">اضغط على الخريطة</div></div>`,
+    actions: [{ label: 'إضافة البلاغ', onClick: async m => {
+      if (!picked) { toast('حدّد الموقع على الخريطة', 'err'); return false; }
+      const fd = new FormData();
+      fd.append('category', m.querySelector('#sCat').value); fd.append('description', m.querySelector('#sDesc').value);
+      fd.append('socialUrl', m.querySelector('#sUrl').value); fd.append('lng', picked[0]); fd.append('lat', picked[1]); fd.append('locationSource', 'manual');
+      const f = m.querySelector('#sImg').files[0]; if (f) fd.append('media', f);
+      const out = await api('/api/reports', { method: 'POST', form: fd });
+      toast(`تمت الإضافة ${out.code} — ${out.unitName || 'غرفة العمليات'}`, 'ok');
+    } }, { label: 'إلغاء', cls: 'ghost' }] });
+  setTimeout(() => {
+    mini = createMap('sMap', { zoom: 9 });
+    let mk;
+    mini.on('click', async e => {
+      picked = [e.lngLat.lng, e.lngLat.lat];
+      mk = mk || new maplibregl.Marker({ color: '#187535' }); mk.setLngLat(picked).addTo(mini);
+      const info = await api(`/api/locate?lng=${picked[0]}&lat=${picked[1]}`);
+      document.getElementById('sLoc').textContent = !info.inside ? 'خارج المحافظة' : info.unit ? `${info.village.name} — ${info.unit.name}` : info.noUnitArea;
+    });
+  }, 50);
+  await bg;
+};
+
+// --- audit ---
+document.getElementById('auditBtn').onclick = async () => {
+  const [v, rows] = await Promise.all([api('/api/audit/verify'), api('/api/audit')]);
+  modal({ title: 'سجل التدقيق', body: `
+    <div class="${v.ok ? 'hint' : 'danger-note'}" style="${v.ok ? 'background:#E7F6EC;border-color:#BBE5C8;color:#14532D' : ''}">${v.ok ? `✓ سلسلة التجزئة سليمة — ${fmt(v.rows)} إجراء مسجل، ولم يتم تعديل أو حذف أي سجل.` : `✗ تم اكتشاف تلاعب عند السجل رقم ${v.brokenAt}`}</div>
+    <div class="tiny muted">كل إجراء بيتسجل في سجل إضافة فقط، ومربوط بالإجراء اللي قبله ببصمة SHA-256. أي تعديل في سجل قديم بيكسر السلسلة.</div>
+    <div style="max-height:50vh;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse">${rows.slice(-60).reverse().map(a => `<tr style="border-bottom:1px solid var(--surface-2)"><td class="num" style="padding:4px">${a.id}</td><td class="num" style="padding:4px;white-space:nowrap">${dt(a.at)}</td><td style="padding:4px">${esc(a.actorName || '')}</td><td style="padding:4px">${esc(a.action)}</td><td class="num muted" style="padding:4px;direction:ltr;font-family:monospace">${a.hash.slice(0, 10)}…</td></tr>`).join('')}</table></div>`,
+    actions: [{ label: 'إغلاق', cls: 'ghost' }] });
+};
+
+// --- settings ---
+const quickSettings = async () => { // superseded by /admin.html
+  const { settings: s } = await api('/api/meta');
+  const heads = await api('/api/users?role=UNIT_HEAD');
+  const unitName = id => geo.units.features.find(f => f.properties.id === id)?.properties.name;
+  await modal({ title: 'إعدادات النظام (مشرف الغرفة)', body: `
+    <div class="row wrap" style="gap:12px">
+      <label class="field" style="flex:1"><span>الحد اليومي للبلاغات لكل مواطن</span><input class="input num" type="number" id="dailyLimit" value="${s.dailyLimit}"></label>
+      <label class="field" style="flex:1"><span>نطاق كشف التكرار (متر)</span><input class="input num" type="number" id="dupRadiusM" value="${s.dupRadiusM}"></label>
+      <label class="field" style="flex:1"><span>نسبة عينة مراجعة الرفض %</span><input class="input num" type="number" id="rejectionSamplePct" value="${s.rejectionSamplePct}"></label></div>
+    <div class="section-title" style="margin:4px 0 0">مدد الاستلام والحل (بالساعات)</div>
+    <table style="width:100%;font-size:13px">${Object.entries(s.sla).map(([p, v]) => `<tr><td>${priorityAr(p)}</td><td><input class="input num" data-sla="${p}.ack" type="number" value="${v.ack / 60}" style="width:90px"> استلام</td><td><input class="input num" data-sla="${p}.resolve" type="number" value="${v.resolve / 60}" style="width:90px"> حل</td></tr>`).join('')}</table>
+    <div class="section-title" style="margin:4px 0 0">أوزان درجة الأداء (المجموع 100)</div>
+    <div class="row wrap">${Object.entries({ k3: 'الالتزام بالمدة', k4: 'نسبة الحل', k6: 'الرضا', k1: 'سرعة الاستلام', k5: 'إعادة الفتح', k8: 'المصداقية', k9: 'التكرار' }).map(([k, t]) => `<label class="field" style="width:100px"><span>${t}</span><input class="input num" type="number" data-w="${k}" value="${s.weights[k]}"></label>`).join('')}</div>
+    <label class="chk"><input type="checkbox" id="transparencyPage" ${s.transparencyPage ? 'checked' : ''}> تفعيل صفحة الشفافية العامة للمواطنين</label>
+    <div class="section-title" style="margin:4px 0 0">إخفاء بيانات المبلّغ عن الوحدة المحلية</div>
+    <div style="max-height:160px;overflow:auto;columns:2;font-size:13px">${heads.map(h => `<label class="chk"><input type="checkbox" data-hide="${h.unitId}" ${h.hideReporter !== false ? 'checked' : ''}> ${esc(unitName(h.unitId))}</label>`).join('')}</div>`,
+    actions: [{ label: 'حفظ الإعدادات', onClick: async m => {
+      const sla = structuredClone(s.sla); m.querySelectorAll('[data-sla]').forEach(i => { const [p, k] = i.dataset.sla.split('.'); sla[p][k] = Math.round(Number(i.value) * 60); });
+      const weights = {}; m.querySelectorAll('[data-w]').forEach(i => weights[i.dataset.w] = Number(i.value));
+      const unitHide = {}; m.querySelectorAll('[data-hide]').forEach(i => unitHide[i.dataset.hide] = i.checked);
+      await api('/api/settings', { method: 'PUT', body: { dailyLimit: Number(m.querySelector('#dailyLimit').value), dupRadiusM: Number(m.querySelector('#dupRadiusM').value), rejectionSamplePct: Number(m.querySelector('#rejectionSamplePct').value), sla, weights, transparencyPage: m.querySelector('#transparencyPage').checked, unitHide } });
+      toast('تم حفظ الإعدادات', 'ok'); loadAll();
+    } }, { label: 'إلغاء', cls: 'ghost' }] });
+};
+
+// --- realtime ---
+const socket = io();
+let kpiTimer;
+const softReloadKpis = () => { clearTimeout(kpiTimer); kpiTimer = setTimeout(async () => { kpis = await api(`/api/kpis?days=${days}`); paintUnits(); renderKpis(); }, 2500); };
+socket.on('report:new', r => {
+  reports.push(r); refresh(); softReloadKpis();
+  if (sound) chime();
+  toast(`بلاغ جديد: ${catAr(r.category)} — ${r.villageName || r.noUnitArea || ''}`);
+  document.querySelector(`.ritem[data-id="${r.id}"]`)?.classList.add('flash');
+  const el = document.createElement('div'); el.style.cssText = 'width:22px;height:22px;border-radius:50%;background:#F4A21D;box-shadow:0 0 0 0 rgb(244 162 29/.7);animation:pulse 1.4s 4';
+  const mk = new maplibregl.Marker({ element: el }).setLngLat(r.location).addTo(map); setTimeout(() => mk.remove(), 6000);
+});
+socket.on('report:update', r => {
+  const i = reports.findIndex(x => x.id === r.id); if (i >= 0) reports[i] = r; else reports.push(r);
+  refresh(); softReloadKpis();
+  if (selected === r.id) select(r.id, false);
+});
+socket.on('demo:reset', () => loadAll());
+
+await loadAll();
+</script>
+</body>
+</html>

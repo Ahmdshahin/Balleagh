@@ -1,0 +1,23 @@
+{
+  "name": "ballegh",
+  "version": "0.1.0",
+  "private": true,
+  "description": "بلّغ — منصة بلاغات محافظة الفيوم (demo)",
+  "type": "module",
+  "main": "demo/server.js",
+  "scripts": {
+    "start": "node demo/server.js",
+    "seed": "node demo/scripts/seed.js",
+    "auto-deploy": "node scripts/auto-deploy.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@turf/turf": "^7.4.0",
+    "d3-delaunay": "^6.0.6",
+    "express": "^4.22.3",
+    "multer": "^2.5.0",
+    "socket.io": "^4.8.4"
+  }
+}

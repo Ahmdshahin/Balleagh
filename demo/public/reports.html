@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — مركز التقارير</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  .shell { display:grid; grid-template-columns:260px 1fr; min-height:calc(100vh - 60px); }
+  .side { background:var(--surface); border-left:1px solid var(--border); padding:14px 10px; }
+  .side a { display:grid; gap:2px; padding:10px 12px; border-radius:12px; color:var(--text); text-decoration:none; }
+  .side a b { font-size:14px; font-weight:500; } .side a span { font-size:12px; color:var(--muted); }
+  .side a:hover { background:var(--surface-2); }
+  .side a.on { background:var(--primary-soft); } .side a.on b { color:var(--primary); font-weight:600; }
+  .side h6 { margin:12px 12px 4px; font-size:11px; color:var(--muted); font-weight:600; }
+  .main { padding:18px 24px 50px; min-width:0; }
+  .filters { display:flex; flex-wrap:wrap; gap:8px; align-items:end; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:12px; margin-bottom:16px; }
+  .filters .field { min-width:140px; }
+  .filters .input { padding:7px 10px; font-size:13px; }
+  .presets { display:flex; gap:4px; background:var(--surface-2); border-radius:10px; padding:3px; }
+  .presets button { border:0; background:none; padding:6px 10px; border-radius:8px; font-size:12px; cursor:pointer; color:var(--muted); }
+  .presets button.on { background:var(--surface); color:var(--text); font-weight:600; box-shadow:var(--sh-sm); }
+  .rhead { display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .rhead h1 { margin:0; font-size:22px; }
+  .rhead .sub { color:var(--muted); font-size:13px; }
+  table.t { width:100%; border-collapse:collapse; font-size:13px; }
+  table.t th { text-align:right; font-size:12px; color:var(--muted); font-weight:600; padding:8px; border-bottom:1px solid var(--border); white-space:nowrap; background:var(--surface); position:sticky; top:0; cursor:pointer; }
+  table.t td { padding:8px; border-bottom:1px solid var(--surface-2); font-variant-numeric:tabular-nums; }
+  table.t tr:hover td { background:var(--bg); }
+  .tablebox { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:auto; max-height:70vh; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  @media (max-width:1000px) { .shell { grid-template-columns:1fr; } .side { display:flex; overflow-x:auto; } .side h6 { display:none; } .grid2 { grid-template-columns:1fr; } }
+  .hbar { display:grid; grid-template-columns:150px 1fr 60px; gap:8px; align-items:center; font-size:13px; margin-bottom:7px; }
+  .hbar i { display:block; height:12px; border-radius:6px; }
+  .print-head { display:none; }
+  @media print {
+    .topbar, .side, .filters, .no-print { display:none !important; }
+    .shell { display:block; } .main { padding:0; } .tablebox { max-height:none; overflow:visible; border:0; }
+    .print-head { display:flex; align-items:center; gap:12px; border-bottom:3px solid var(--green-600); padding-bottom:8px; margin-bottom:12px; }
+    .print-head img { height:56px; } .print-head div { flex:1; text-align:center; }
+    @page { size:A4 landscape; margin:12mm; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar"><span id="brand"></span><span class="spacer"></span></header>
+<div class="shell">
+  <aside class="side" id="side"></aside>
+  <main class="main">
+    <div class="filters" id="filters">
+      <div class="field"><span>الفترة</span><div class="presets" id="presets"><button data-d="7">7 أيام</button><button data-d="30" class="on">30 يوم</button><button data-d="60">60 يوم</button><button data-d="custom">مخصص</button></div></div>
+      <label class="field hidden" id="fromF"><span>من</span><input class="input num" type="date" id="from"></label>
+      <label class="field hidden" id="toF"><span>إلى</span><input class="input num" type="date" id="to"></label>
+      <label class="field"><span>المركز</span><select class="input" id="center"><option value="">كل المراكز</option></select></label>
+      <label class="field"><span>الوحدة المحلية</span><select class="input" id="unit"><option value="">كل الوحدات</option></select></label>
+      <label class="field"><span>التصنيف</span><select class="input" id="category"><option value="">كل التصنيفات</option></select></label>
+      <label class="field"><span>المصدر</span><select class="input" id="source"><option value="">الكل</option><option value="app">تطبيق المواطن</option><option value="social">سوشيال ميديا</option></select></label>
+      <span class="spacer"></span>
+      <button class="btn secondary sm" id="csv">تصدير Excel</button>
+      <button class="btn sm" id="print">طباعة / PDF</button>
+    </div>
+    <div class="print-head"><img src="/brand/fayoum-governorate-logo.png" alt=""><div><b id="ph-title"></b><div class="small muted" id="ph-sub"></div></div><img src="/brand/ballegh-mark.svg" alt="" style="height:44px"></div>
+    <div id="out"><div class="muted">جاري التحميل…</div></div>
+  </main>
+</div>
+<script type="module">
+import { api, meta, useUser, esc, fmt, dur, dt, toast, brandHtml, mountNav, bandBadge, statusBadge, priorityBadge, catAr, statusAr, priorityAr, BAND_COLOR, BAND_AR, STATUS_COLOR } from '/js/common.js';
+
+document.getElementById('brand').innerHTML = brandHtml(); mountNav('reports');
+const USER = localStorage.getItem('ballegh:ops') || 'ops-sup';
+useUser(USER);
+const M = await meta();
+const [geo, heads, staff] = await Promise.all([api('/api/geo'), api('/api/users?role=UNIT_HEAD'), api('/api/users?role=UNIT_STAFF&all=1')]);
+const DAY = 86_400_000;
+const OPEN = ['NEW', 'ROUTED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'PENDING_BUDGET', 'PARTIALLY_RESOLVED', 'REOPENED', 'NOT_COMPETENT', 'OPS_QUEUE'];
+
+const REPORTS = [
+  ['أداء', [
+    ['summary', 'ملخص الأداء العام', 'المؤشرات الرئيسية والاتجاه'],
+    ['units', 'أداء الوحدات المحلية', 'الترتيب ودرجة الأداء'],
+    ['centers', 'أداء المراكز', 'مقارنة بين المراكز'],
+    ['staff', 'أداء الموظفين', 'البلاغات المسندة لكل موظف'],
+  ]],
+  ['تحليل', [
+    ['categories', 'تحليل التصنيفات', 'العدد ومدة الحل لكل نوع'],
+    ['satisfaction', 'رضا المواطنين', 'التقييمات وإعادة الفتح'],
+  ]],
+  ['رقابة', [
+    ['overdue', 'البلاغات المتأخرة', 'تجاوزت مدة الحل الآن'],
+    ['rejections', 'البلاغات المرفوضة', 'الأسباب ونتائج المراجعة'],
+    ['log', 'سجل البلاغات التفصيلي', 'كل البلاغات بكل الحقول'],
+  ]],
+];
+document.getElementById('side').innerHTML = REPORTS.map(([g, items]) => `<h6>${g}</h6>${items.map(([k, t, s]) => `<a href="#${k}" data-k="${k}"><b>${t}</b><span>${s}</span></a>`).join('')}`).join('');
+
+// filters
+const fill = (id, items) => document.getElementById(id).insertAdjacentHTML('beforeend', items.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join(''));
+fill('center', geo.centers.features.map(f => [f.properties.id, f.properties.name]));
+fill('category', M.categories.map(c => [c.code, c.ar]));
+const fillUnits = () => { const c = val('center'); document.getElementById('unit').innerHTML = '<option value="">كل الوحدات</option>' + geo.units.features.filter(f => !c || f.properties.centerId === c).map(f => `<option value="${f.properties.id}">${esc(f.properties.name)}</option>`).join(''); };
+const val = id => document.getElementById(id).value;
+fillUnits();
+let preset = 30;
+const today = new Date().toISOString().slice(0, 10);
+document.getElementById('to').value = today;
+document.getElementById('from').value = new Date(Date.now() - 30 * DAY).toISOString().slice(0, 10);
+document.getElementById('presets').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  preset = b.dataset.d === 'custom' ? 'custom' : Number(b.dataset.d);
+  document.querySelectorAll('#presets button').forEach(x => x.classList.toggle('on', x === b));
+  ['fromF', 'toF'].forEach(id => document.getElementById(id).classList.toggle('hidden', preset !== 'custom'));
+  run();
+};
+function range() {
+  if (preset === 'custom') return [new Date(val('from')).getTime(), new Date(val('to')).getTime() + DAY - 1];
+  return [Date.now() - preset * DAY, Date.now()];
+}
+function q() {
+  const [from, to] = range();
+  const p = new URLSearchParams({ from, to });
+  ['center', 'unit', 'category', 'source'].forEach(k => { if (val(k)) p.set(k, val(k)); });
+  return p;
+}
+document.getElementById('center').onchange = () => { fillUnits(); run(); };
+['unit', 'category', 'source', 'from', 'to'].forEach(id => document.getElementById(id).onchange = run);
+
+// data
+let reportsCache = null;
+async function getReports() {
+  if (!reportsCache) reportsCache = await api('/api/reports?days=0');
+  const [a, b] = range();
+  return reportsCache.filter(r => r.createdAt >= a && r.createdAt <= b && (!val('center') || r.centerId === val('center')) && (!val('unit') || r.unitId === val('unit')) && (!val('category') || r.category === val('category')) && (!val('source') || r.source === val('source')));
+}
+const getKpis = () => api('/api/kpis?' + q());
+const periodLabel = () => { const [a, b] = range(); return `${new Date(a).toLocaleDateString('ar-EG-u-nu-latn')} — ${new Date(b).toLocaleDateString('ar-EG-u-nu-latn')}`; };
+const scopeLabel = () => [val('center') && document.getElementById('center').selectedOptions[0].text, val('unit') && document.getElementById('unit').selectedOptions[0].text, val('category') && document.getElementById('category').selectedOptions[0].text].filter(Boolean).join(' · ') || 'كل المحافظة';
+const hours = h => h == null ? '—' : dur(h * 3_600_000);
+const pct = v => v == null ? '—' : fmt(v) + '%';
+const head = name => { document.getElementById('ph-title').textContent = name; document.getElementById('ph-sub').textContent = `${scopeLabel()} · ${periodLabel()} · صدر ${new Date().toLocaleString('ar-EG-u-nu-latn')}`; return `<div class="rhead"><div><h1>${name}</h1><div class="sub">${esc(scopeLabel())} · ${periodLabel()}</div></div></div>`; };
+const tiles = arr => `<div class="kpis" style="margin-bottom:16px">${arr.map(([l, v, d]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div>${d ? `<div class="tiny muted">${d}</div>` : ''}</div>`).join('')}</div>`;
+const hbars = (rows, color = '#1E8A3E') => { const max = Math.max(...rows.map(r => r[1]), 1); return rows.map(([l, v, c, extra]) => `<div class="hbar"><span>${esc(l)}</span><i style="width:${v / max * 100}%;background:${c || color}"></i><span class="num">${fmt(v)}${extra || ''}</span></div>`).join(''); };
+
+// sortable table + CSV-able data
+let lastTable = null;
+function table(cols, rows) {
+  lastTable = { cols, rows };
+  return `<div class="tablebox"><table class="t" id="tbl"><thead><tr>${cols.map((c, i) => `<th data-i="${i}">${c.t}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${c.h ? c.h(r) : esc(c.v(r) ?? '—')}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="muted">لا توجد بيانات في هذه الفترة</td></tr>`}</tbody></table></div>`;
+}
+document.getElementById('out').addEventListener('click', e => {
+  const th = e.target.closest('#tbl th'); if (!th || !lastTable) return;
+  const c = lastTable.cols[th.dataset.i]; const dir = th.dataset.dir === 'asc' ? -1 : 1;
+  lastTable.rows.sort((a, b) => { const x = c.s ? c.s(a) : c.v(a), y = c.s ? c.s(b) : c.v(b); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+  const html = table(lastTable.cols, lastTable.rows);
+  document.querySelector('.tablebox').outerHTML = html;
+  document.querySelector(`#tbl th[data-i="${th.dataset.i}"]`).dataset.dir = dir === 1 ? 'asc' : 'desc';
+});
+
+const views = {
+  async summary() {
+    const k = await getKpis(); const o = k.overall;
+    const max = Math.max(...k.trend.map(t => t.total), 1);
+    return head('ملخص الأداء العام') + tiles([
+      ['إجمالي البلاغات', fmt(o.allTotal), `${fmt(o.duplicates)} مكرر مدموج`], ['مفتوح', fmt(o.open), `${fmt(o.overdue)} متأخر`],
+      ['الالتزام بمدد الحل', pct(o.k3)], ['نسبة الحل', pct(o.k4)], ['متوسط الاستلام', hours(o.k1)], ['متوسط الحل', hours(o.k2)],
+      ['رضا المواطن', o.k6 == null ? '—' : fmt(o.k6, 1) + ' / 5', `${fmt(o.ratingsCount)} تقييم`], ['نسبة الرفض', pct(o.k7)], ['درجة الأداء', o.score ?? '—'],
+    ]) + `<div class="grid2"><div class="card"><h3>البلاغات حسب التصنيف</h3>${hbars(k.byCategory.map(c => [c.ar, c.count]))}</div>
+      <div class="card"><h3>الاتجاه الأسبوعي</h3>${k.trend.map(t => `<div class="hbar"><span class="num">${new Date(t.to).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'short' })}</span><i style="width:${t.total / max * 100}%;background:#F4A21D"></i><span class="num">${t.total} · ${pct(t.k3)}</span></div>`).join('')}<div class="tiny muted">عدد البلاغات · نسبة الالتزام بمدة الحل</div></div></div>
+      <div class="card"><h3>أكثر القرى في البلاغات</h3>${hbars(k.topVillages.map(v => [v.name, v.count]), '#187535')}</div>`;
+  },
+  async units() {
+    const k = await getKpis();
+    const rows = k.units.filter(u => (!val('center') || u.centerId === val('center')) && (!val('unit') || u.id === val('unit'))).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+    return head('أداء الوحدات المحلية') + tiles([['جيد', rows.filter(u => u.band === 'good').length], ['متوسط', rows.filter(u => u.band === 'fair').length], ['ضعيف', rows.filter(u => u.band === 'poor').length], ['بيانات غير كافية', rows.filter(u => u.band === 'insufficient').length]]) + table([
+      { t: '#', v: u => u.rank, s: u => u.rank ?? 999 }, { t: 'الوحدة المحلية', v: u => u.name }, { t: 'رئيس الوحدة', v: u => heads.find(h => h.unitId === u.id)?.name }, { t: 'المركز', v: u => u.centerName },
+      { t: 'البلاغات', v: u => u.total }, { t: 'مفتوح', v: u => u.open }, { t: 'متأخر', v: u => u.overdue }, { t: 'الاستلام', v: u => hours(u.k1), s: u => u.k1 ?? 1e9 }, { t: 'الحل', v: u => hours(u.k2), s: u => u.k2 ?? 1e9 },
+      { t: 'الالتزام', v: u => pct(u.k3), s: u => u.k3 ?? -1 }, { t: 'الحل %', v: u => pct(u.k4), s: u => u.k4 ?? -1 }, { t: 'الرضا', v: u => fmt(u.k6, 1), s: u => u.k6 ?? -1 }, { t: 'الرفض', v: u => pct(u.k7), s: u => u.k7 ?? -1 },
+      { t: 'إعادة الفتح', v: u => pct(u.k5), s: u => u.k5 ?? -1 }, { t: 'الدرجة', v: u => u.score, s: u => u.score ?? -1, h: u => bandBadge(u.band, u.score) },
+    ], rows);
+  },
+  async centers() {
+    const k = await getKpis();
+    return head('أداء المراكز') + `<div class="card" style="margin-bottom:16px"><h3>الالتزام بمدد الحل لكل مركز</h3>${hbars(k.centers.map(c => [c.name, Math.round(c.k3 || 0), (c.k3 || 0) >= 80 ? BAND_COLOR.good : (c.k3 || 0) >= 60 ? BAND_COLOR.fair : BAND_COLOR.poor, '%']))}</div>` + table([
+      { t: 'المركز', v: c => c.name }, { t: 'رئيس المركز', v: c => `رئيس ${c.name}` }, { t: 'الوحدات', v: c => k.units.filter(u => u.centerId === c.id).length }, { t: 'الوحدات الضعيفة', v: c => k.units.filter(u => u.centerId === c.id && u.band === 'poor').length },
+      { t: 'البلاغات', v: c => c.total }, { t: 'متأخر', v: c => c.overdue }, { t: 'الاستلام', v: c => hours(c.k1), s: c => c.k1 ?? 1e9 }, { t: 'الالتزام', v: c => pct(c.k3), s: c => c.k3 ?? -1 },
+      { t: 'الرضا', v: c => fmt(c.k6, 1), s: c => c.k6 ?? -1 }, { t: 'الدرجة', v: c => c.score, s: c => c.score ?? -1, h: c => bandBadge(c.band, c.score) },
+    ], k.centers);
+  },
+  async staff() {
+    const list = (await getReports()).filter(r => r.assigneeId);
+    const by = {};
+    for (const r of list) { const s = by[r.assigneeId] ||= { id: r.assigneeId, n: 0, open: 0, done: 0, onTime: 0, late: 0, res: [], stars: [] }; s.n++; if (OPEN.includes(r.status)) { s.open++; if (Date.now() > r.resolveDueAt && r.status !== 'PENDING_BUDGET') s.late++; } if (r.resolvedAt) { s.done++; if (r.resolvedAt <= r.resolveDueAt) s.onTime++; s.res.push((r.resolvedAt - r.createdAt - (r.slaPausedMs || 0)) / 3_600_000); } if (r.stars) s.stars.push(r.stars); }
+    const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+    const rows = Object.values(by).map(s => { const u = staff.find(x => x.id === s.id); return { ...s, name: u?.name || s.id, unit: geo.units.features.find(f => f.properties.id === u?.unitId)?.properties.name || '', k3: s.done ? s.onTime / s.done * 100 : null, avgRes: avg(s.res), rating: avg(s.stars) }; }).sort((a, b) => b.n - a.n);
+    return head('أداء الموظفين') + table([
+      { t: 'الموظف', v: s => s.name }, { t: 'الوحدة', v: s => s.unit }, { t: 'مسندة', v: s => s.n }, { t: 'مفتوحة', v: s => s.open }, { t: 'متأخرة', v: s => s.late }, { t: 'محلولة', v: s => s.done },
+      { t: 'الالتزام', v: s => pct(s.k3), s: s => s.k3 ?? -1 }, { t: 'متوسط الحل', v: s => hours(s.avgRes), s: s => s.avgRes ?? 1e9 }, { t: 'الرضا', v: s => fmt(s.rating, 1), s: s => s.rating ?? -1 },
+    ], rows);
+  },
+  async categories() {
+    const list = await getReports();
+    const rows = M.categories.map(c => {
+      const rs = list.filter(r => r.category === c.code), done = rs.filter(r => r.resolvedAt);
+      const res = done.map(r => (r.resolvedAt - r.createdAt - (r.slaPausedMs || 0)) / 3_600_000);
+      const stars = rs.filter(r => r.stars).map(r => r.stars);
+      return { ar: c.ar, priority: c.priority, n: rs.length, open: rs.filter(r => OPEN.includes(r.status)).length, dup: rs.reduce((a, r) => a + (r.duplicateCount || 0), 0), avgRes: res.length ? res.reduce((a, b) => a + b, 0) / res.length : null, k3: done.length ? done.filter(r => r.resolvedAt <= r.resolveDueAt).length / done.length * 100 : null, rating: stars.length ? stars.reduce((a, b) => a + b, 0) / stars.length : null, rej: rs.filter(r => r.rejectReason).length };
+    }).filter(r => r.n).sort((a, b) => b.n - a.n);
+    return head('تحليل التصنيفات') + `<div class="grid2"><div class="card"><h3>عدد البلاغات</h3>${hbars(rows.map(r => [r.ar, r.n]))}</div><div class="card"><h3>متوسط مدة الحل (ساعة)</h3>${hbars(rows.filter(r => r.avgRes != null).map(r => [r.ar, Math.round(r.avgRes)]), '#F4A21D')}</div></div>` + table([
+      { t: 'التصنيف', v: r => r.ar }, { t: 'الأولوية الأساسية', v: r => priorityAr(r.priority) }, { t: 'البلاغات', v: r => r.n }, { t: 'مفتوح', v: r => r.open }, { t: 'تكرار مدموج', v: r => r.dup },
+      { t: 'متوسط الحل', v: r => hours(r.avgRes), s: r => r.avgRes ?? 1e9 }, { t: 'الالتزام', v: r => pct(r.k3), s: r => r.k3 ?? -1 }, { t: 'الرضا', v: r => fmt(r.rating, 1), s: r => r.rating ?? -1 }, { t: 'مرفوض', v: r => r.rej },
+    ], rows);
+  },
+  async satisfaction() {
+    const list = (await getReports()).filter(r => r.stars);
+    const dist = [5, 4, 3, 2, 1].map(s => [`${'★'.repeat(s)}`, list.filter(r => r.stars === s).length, s >= 4 ? '#16A34A' : s === 3 ? '#EAB308' : '#DC2626']);
+    const notFixed = list.filter(r => r.citizenResolved === false);
+    const avg = list.length ? list.reduce((a, r) => a + r.stars, 0) / list.length : null;
+    return head('رضا المواطنين') + tiles([['متوسط التقييم', avg == null ? '—' : fmt(avg, 1) + ' / 5'], ['عدد التقييمات', fmt(list.length)], ['قال «متحلتش»', fmt(notFixed.length), list.length ? pct(notFixed.length / list.length * 100) : ''], ['تقييمات منخفضة (1–2)', fmt(list.filter(r => r.stars <= 2).length)]]) +
+      `<div class="card" style="margin-bottom:16px"><h3>توزيع التقييمات</h3>${hbars(dist)}</div><h3 style="margin:0 0 8px;font-size:16px">البلاغات اللي المواطن قال إنها متحلتش</h3>` + table([
+        { t: 'رقم البلاغ', v: r => r.code }, { t: 'التاريخ', v: r => dt(r.createdAt), s: r => r.createdAt }, { t: 'التصنيف', v: r => catAr(r.category) }, { t: 'الوحدة', v: r => r.unitName }, { t: 'التقييم', v: r => '★'.repeat(r.stars) }, { t: 'الحالة الآن', v: r => statusAr(r.status), h: r => statusBadge(r.status) },
+      ], notFixed.sort((a, b) => b.createdAt - a.createdAt));
+  },
+  async overdue() {
+    const now = Date.now();
+    const list = (await getReports()).filter(r => OPEN.includes(r.status) && r.status !== 'PENDING_BUDGET' && now > r.resolveDueAt).sort((a, b) => a.resolveDueAt - b.resolveDueAt);
+    const ESC = ['—', 'رئيس الوحدة', 'رئيس المركز', 'غرفة العمليات', 'المحافظ'];
+    return head('البلاغات المتأخرة') + tiles([['متأخر الآن', fmt(list.length)], ['مُصعّد للمحافظ', fmt(list.filter(r => r.escalation >= 4).length)], ['مُصعّد للغرفة', fmt(list.filter(r => r.escalation === 3).length)], ['حرج / عاجل', fmt(list.filter(r => ['CRITICAL', 'URGENT'].includes(r.priority)).length)]]) + table([
+      { t: 'رقم البلاغ', v: r => r.code, h: r => `<a href="/report.html?id=${r.id}" target="_blank" class="num">${esc(r.code)}</a>` }, { t: 'التصنيف', v: r => catAr(r.category) }, { t: 'الأولوية', v: r => priorityAr(r.priority), h: r => priorityBadge(r.priority) },
+      { t: 'القرية', v: r => r.villageName || r.noUnitArea }, { t: 'الوحدة', v: r => r.unitName || 'غرفة العمليات' }, { t: 'الحالة', v: r => statusAr(r.status), h: r => statusBadge(r.status) },
+      { t: 'موعد الحل', v: r => dt(r.resolveDueAt), s: r => r.resolveDueAt }, { t: 'التأخير', v: r => dur(now - r.resolveDueAt), s: r => now - r.resolveDueAt, h: r => `<b style="color:#B91C1C">${dur(now - r.resolveDueAt)}</b>` }, { t: 'مُصعّد إلى', v: r => ESC[r.escalation] },
+    ], list);
+  },
+  async rejections() {
+    const list = (await getReports()).filter(r => r.rejectReason);
+    const reasons = {}; list.forEach(r => reasons[r.rejectReason] = (reasons[r.rejectReason] || 0) + 1);
+    const byUnit = {}; list.forEach(r => byUnit[r.unitName] = (byUnit[r.unitName] || 0) + 1);
+    return head('البلاغات المرفوضة') + tiles([['مرفوض', fmt(list.length)], ['ضمن عينة المراجعة', fmt(list.filter(r => r.sampled).length)], ['رفض مؤكَّد', fmt(list.filter(r => r.rejectConfirmed).length)], ['رفض تم نقضه', fmt(list.filter(r => r.rejectOverridden).length)], ['بانتظار المراجعة', fmt(list.filter(r => r.status === 'REJECTED').length)]]) +
+      `<div class="grid2"><div class="card"><h3>أسباب الرفض</h3>${hbars(Object.entries(reasons).sort((a, b) => b[1] - a[1]), '#B91C1C')}</div><div class="card"><h3>الأكثر رفضاً من الوحدات</h3>${hbars(Object.entries(byUnit).sort((a, b) => b[1] - a[1]).slice(0, 8), '#DC2626')}</div></div>` + table([
+        { t: 'رقم البلاغ', v: r => r.code, h: r => `<a href="/report.html?id=${r.id}" target="_blank" class="num">${esc(r.code)}</a>` }, { t: 'التاريخ', v: r => dt(r.createdAt), s: r => r.createdAt }, { t: 'التصنيف', v: r => catAr(r.category) }, { t: 'الوحدة', v: r => r.unitName },
+        { t: 'السبب', v: r => r.rejectReason }, { t: 'عينة', v: r => r.sampled ? 'نعم' : '' }, { t: 'نتيجة المراجعة', v: r => r.rejectConfirmed ? 'مؤكَّد' : r.rejectOverridden ? 'تم النقض' : 'بانتظار', h: r => r.rejectConfirmed ? '<span class="badge plain" style="background:#E7F6EC;color:#15803D">مؤكَّد</span>' : r.rejectOverridden ? '<span class="badge plain" style="background:#FDECEC;color:#B91C1C">تم النقض</span>' : '<span class="badge plain" style="background:#FEF3C7;color:#92400E">بانتظار</span>' },
+      ], list.sort((a, b) => b.createdAt - a.createdAt));
+  },
+  async log() {
+    const list = (await getReports()).sort((a, b) => b.createdAt - a.createdAt);
+    return head('سجل البلاغات التفصيلي') + `<div class="hint no-print" style="margin-bottom:12px">بيعرض أول 500 بلاغ. «تصدير Excel» بينزّل كل البلاغات في الفترة بكل الحقول.</div>` + table([
+      { t: 'رقم البلاغ', v: r => r.code, h: r => `<a href="/report.html?id=${r.id}" target="_blank" class="num">${esc(r.code)}</a>` }, { t: 'التاريخ', v: r => dt(r.createdAt), s: r => r.createdAt }, { t: 'التصنيف', v: r => catAr(r.category) },
+      { t: 'الأولوية', v: r => priorityAr(r.priority), h: r => priorityBadge(r.priority) }, { t: 'الحالة', v: r => statusAr(r.status), h: r => statusBadge(r.status) }, { t: 'القرية', v: r => r.villageName || r.noUnitArea },
+      { t: 'الوحدة', v: r => r.unitName || 'غرفة العمليات' }, { t: 'المصدر', v: r => r.source === 'social' ? 'سوشيال' : 'التطبيق' }, { t: 'تكرار', v: r => r.duplicateCount + 1 },
+      { t: 'زمن الاستلام', v: r => r.acknowledgedAt ? dur(r.acknowledgedAt - r.createdAt) : '—', s: r => r.acknowledgedAt ? r.acknowledgedAt - r.createdAt : 1e15 },
+      { t: 'في المدة', v: r => r.resolvedAt ? (r.resolvedAt <= r.resolveDueAt ? 'نعم' : 'لا') : '' }, { t: 'التقييم', v: r => r.stars ? '★'.repeat(r.stars) : '' },
+    ], list.slice(0, 500));
+  },
+};
+
+async function run() {
+  const k = location.hash.slice(1) || 'summary';
+  document.querySelectorAll('.side a').forEach(a => a.classList.toggle('on', a.dataset.k === k));
+  document.getElementById('out').innerHTML = '<div class="muted">جاري إعداد التقرير…</div>';
+  try { document.getElementById('out').innerHTML = await (views[k] || views.summary)(); } catch (e) { document.getElementById('out').innerHTML = `<div class="danger-note">${esc(e.message)}</div>`; }
+}
+window.addEventListener('hashchange', run);
+
+document.getElementById('print').onclick = () => window.print();
+document.getElementById('csv').onclick = async () => {
+  const k = location.hash.slice(1) || 'summary';
+  if (['log', 'overdue', 'rejections'].includes(k) || !lastTable) {
+    const p = q(); if (k === 'overdue') p.set('status', 'late');
+    const res = await fetch('/api/export/reports?' + p, { headers: { 'x-user-id': USER } });
+    if (!res.ok) return toast('غير مصرح بالتصدير', 'err');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await res.blob()); a.download = `ballegh-${k}-${today}.csv`; a.click();
+  } else {
+    const strip = s => String(s ?? '').replace(/<[^>]+>/g, '');
+    const csv = '﻿' + [lastTable.cols.map(c => c.t), ...lastTable.rows.map(r => lastTable.cols.map(c => strip(c.v(r))))].map(l => l.map(v => /[",\n]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\r\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); a.download = `ballegh-${k}-${today}.csv`; a.click();
+  }
+  toast('تم التصدير — يفتح في Excel', 'ok');
+};
+run();
+</script>
+</body>
+</html>

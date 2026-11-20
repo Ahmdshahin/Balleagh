@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — الوحدة المحلية</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  /* 1. unit summary strip */
+  .summary { display:flex; align-items:center; gap:16px; padding:12px 18px; background:linear-gradient(160deg,#F3FAF5,#fff); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .summary .big { width:52px; height:52px; border-radius:14px; display:grid; place-items:center; font-size:22px; font-weight:700; color:#fff; flex:none; }
+  .summary .who { min-width:220px; flex:1; }
+  .summary .who b { font-size:17px; }
+  .summary .mk { display:flex; gap:8px; flex-wrap:wrap; }
+  .summary .mk div { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:6px 12px; min-width:92px; }
+  .summary .mk b { display:block; font-size:18px; font-variant-numeric:tabular-nums; line-height:1.3; }
+  .summary .mk span { font-size:11px; color:var(--muted); }
+  /* 2. filters bar */
+  .fbar { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 18px; display:grid; gap:10px; }
+  .fbar .status { display:flex; gap:6px; flex-wrap:wrap; }
+  .fbar .status button { border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:6px 14px; font-size:13px; cursor:pointer; color:var(--text); display:inline-flex; gap:6px; align-items:center; }
+  .fbar .status button .n { background:var(--surface-2); border-radius:999px; padding:0 8px; font-size:12px; font-variant-numeric:tabular-nums; }
+  .fbar .status button.on { background:var(--primary); border-color:var(--primary); color:#fff; font-weight:600; }
+  .fbar .status button.on .n { background:rgb(255 255 255/.22); }
+  .fbar .status button.late:not(.on) { border-color:#F6C1C1; color:#B91C1C; }
+  .fbar .fields { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .fbar .fields .input { width:auto; padding:7px 10px; font-size:13px; }
+  .fbar .fields input.input[type=search] { min-width:230px; }
+  .fbar .count { font-size:13px; color:var(--muted); margin-inline-start:auto; }
+  /* 3. list + detail */
+  .layout { flex:1; display:grid; grid-template-columns:420px 1fr; min-height:0; }
+  .col { background:var(--surface); border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; }
+  .list { overflow-y:auto; flex:1; padding:6px; }
+  .detail-col { overflow-y:auto; }
+  .empty { display:grid; place-items:center; height:100%; color:var(--muted); text-align:center; padding:40px; }
+  @media (max-width:900px) { body { height:auto; overflow:auto; } .layout { grid-template-columns:1fr; } .col { max-height:60vh; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span id="brand"></span>
+  
+  <span class="spacer"></span>
+  <label class="small muted">الحساب (للعرض):</label>
+  <select class="input" id="who" style="width:auto;max-width:340px"></select>
+</header>
+<section class="summary" id="summary"></section>
+<section class="fbar" aria-label="فلاتر البلاغات">
+  <div class="status" id="tabs"></div>
+  <div class="fields">
+    <input class="input" type="search" id="q" placeholder="بحث برقم البلاغ أو القرية…">
+    <select class="input" id="village"><option value="">كل القرى</option></select>
+    <select class="input" id="category"><option value="">كل التصنيفات</option></select>
+    <select class="input" id="priority"><option value="">كل الأولويات</option></select>
+    <select class="input" id="assignee"><option value="">كل الموظفين</option><option value="none">غير مسند</option></select>
+    <label class="chk small row"><input type="checkbox" id="lateOnly"> المتأخرة فقط</label>
+    <select class="input" id="sort"><option value="due">الأقرب لموعد الحل</option><option value="new">الأحدث</option><option value="prio">الأولوية</option></select>
+    <button class="btn ghost sm" id="clear">مسح الفلاتر</button>
+    <span class="count num" id="count"></span>
+  </div>
+</section>
+<div class="layout">
+  <aside class="col">
+    <div class="list" id="list"></div>
+  </aside>
+  <main class="detail-col" id="detail"><div class="empty"><div><div style="font-size:40px">📋</div>اختار بلاغ من القائمة</div></div></main>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+import { mountNav, api, meta, useUser, toast, esc, ago, fmt, statusBadge, priorityBadge, slaBar, catAr, modal, brandHtml, BAND_COLOR, BAND_AR, chime } from '/js/common.js';
+import { renderDetail, doAction, askReason } from '/js/detail.js';
+
+document.getElementById('brand').innerHTML = brandHtml(); mountNav('unit');
+const M = await meta();
+const [heads, geo] = await Promise.all([api('/api/users?role=UNIT_HEAD'), api('/api/geo')]);
+const unitOf = id => geo.units.features.find(f => f.properties.id === id)?.properties;
+const sel = document.getElementById('who');
+sel.innerHTML = heads.map(h => `<option value="${h.id}">${esc(unitOf(h.unitId)?.name)} — ${esc(h.name)}</option>`).join('');
+let me = heads.find(h => h.id === (new URLSearchParams(location.search).get('as') || localStorage.getItem('ballegh:unit'))) || heads.find(h => h.unitId === 'u17') || heads[0];
+sel.value = me.id;
+sel.onchange = () => { me = heads.find(h => h.id === sel.value); localStorage.setItem('ballegh:unit', me.id); boot(); };
+
+const OPEN = ['ROUTED', 'REOPENED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'PENDING_BUDGET', 'PARTIALLY_RESOLVED'];
+const TABS = [
+  ['all', 'الكل', null],
+  ['new', 'جديدة', ['ROUTED', 'REOPENED']],
+  ['work', 'قيد العمل', ['ACKNOWLEDGED', 'IN_PROGRESS', 'PENDING_BUDGET', 'PARTIALLY_RESOLVED']],
+  ['review', 'بانتظار المراجعة', ['RESOLVED']],
+  ['closed', 'مغلقة', ['CLOSED']],
+  ['rejected', 'مرفوضة / محوّلة', ['REJECTED', 'NOT_COMPETENT']],
+];
+const PRANK = { CRITICAL: 0, URGENT: 1, NORMAL: 2, LOW: 3 };
+let tab = 'new', reports = [], staff = [], selected = null;
+const $ = id => document.getElementById(id);
+$('category').insertAdjacentHTML('beforeend', M.categories.map(c => `<option value="${c.code}">${esc(c.ar)}</option>`).join(''));
+$('priority').insertAdjacentHTML('beforeend', Object.entries(M.priorityAr).map(([k, t]) => `<option value="${k}">${t}</option>`).join(''));
+
+async function boot() {
+  useUser(me.id);
+  const u = unitOf(me.unitId);
+  $('village').innerHTML = '<option value="">كل القرى</option>' + u.villages.map(v => `<option>${esc(v)}</option>`).join('');
+  $('village').classList.toggle('hidden', u.villages.length < 2);
+  staff = (await api('/api/users?role=UNIT_STAFF')).filter(s => s.unitId === me.unitId);
+  $('assignee').innerHTML = '<option value="">كل الموظفين</option><option value="none">غير مسند</option>' + staff.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  const [list, k] = await Promise.all([api('/api/reports'), api('/api/kpis?days=30')]);
+  reports = list;
+  const ku = k.unit;
+  const c = BAND_COLOR[ku?.band || 'insufficient'];
+  const pctTxt = v => v == null ? '—' : fmt(v) + '%';
+  $('summary').innerHTML = `<div class="big" style="background:${c}" title="ترتيب الوحدة">${ku?.rank ?? '—'}</div>
+    <div class="who"><b>${esc(u.name)}</b><div class="small muted">${esc(u.centerName)} · تخدم: ${u.villages.map(esc).join('، ')}</div>
+      <div class="tiny muted">ترتيب وحدتك <b class="num">${ku?.rank ?? '—'}</b> من <span class="num">${ku?.rankOf ?? '—'}</span> · الترتيب الكامل متاح للمحافظة فقط</div></div>
+    <div class="mk">
+      <div><b>${ku?.score ?? '—'}</b><span>الدرجة · ${BAND_AR[ku?.band || 'insufficient']}</span></div>
+      <div><b>${fmt(ku?.total)}</b><span>بلاغ (30 يوم)</span></div>
+      <div><b>${fmt(ku?.open)}</b><span>مفتوح</span></div>
+      <div><b style="color:${ku?.overdue ? '#B91C1C' : ''}">${fmt(ku?.overdue)}</b><span>متأخر</span></div>
+      <div><b>${pctTxt(ku?.k3)}</b><span>الالتزام بالمدة</span></div>
+      <div><b>${ku?.k6 == null ? '—' : fmt(ku.k6, 1)}</b><span>رضا المواطن</span></div>
+    </div>`;
+  selected = null;
+  $('detail').innerHTML = '<div class="empty"><div><div style="font-size:40px">📋</div>اختار بلاغ من القائمة</div></div>';
+  renderList();
+}
+const isLate = r => OPEN.includes(r.status) && r.status !== 'PENDING_BUDGET' && Date.now() > r.resolveDueAt;
+function renderList() {
+  const q = $('q').value.trim(), v = $('village').value, c = $('category').value, p = $('priority').value, a = $('assignee').value, late = $('lateOnly').checked;
+  // every filter except the status tab — so tab counts reflect the other filters
+  const base = reports.filter(r => (!v || r.villageName === v) && (!c || r.category === c) && (!p || r.priority === p) &&
+    (!a || (a === 'none' ? !r.assigneeId : r.assigneeId === a)) && (!late || isLate(r)) && (!q || r.code.includes(q.toUpperCase()) || (r.villageName || '').includes(q)));
+  const lateCount = reports.filter(isLate).length;
+  $('tabs').innerHTML = TABS.map(([k, t, st]) => `<button data-t="${k}" class="${k === tab ? 'on' : ''}">${t}<span class="n">${base.filter(r => !st || st.includes(r.status)).length}</span></button>`).join('') +
+    `<button data-late class="late ${late ? 'on' : ''}">⚠ متأخرة<span class="n">${lateCount}</span></button>`;
+  const st = TABS.find(t => t[0] === tab)[2];
+  const s = $('sort').value;
+  const list = base.filter(r => !st || st.includes(r.status)).sort(
+    s === 'new' ? (x, y) => y.createdAt - x.createdAt
+      : s === 'prio' ? (x, y) => PRANK[x.priority] - PRANK[y.priority] || x.resolveDueAt - y.resolveDueAt
+        : tab === 'closed' ? (x, y) => y.updatedAt - x.updatedAt : (x, y) => x.resolveDueAt - y.resolveDueAt);
+  $('count').textContent = `${fmt(list.length)} بلاغ`;
+  document.getElementById('list').innerHTML = list.map(r => `<div class="ritem ${selected === r.id ? 'on' : ''}" data-id="${r.id}"><img src="${esc(r.thumb || '/img/placeholder/other.svg')}" alt="" loading="lazy">
+    <div><div class="row"><span class="t">${esc(catAr(r.category))}</span><span class="spacer"></span>${priorityBadge(r.priority)}</div>
+    <div class="s">${esc(r.villageName || '')} · <span class="num" dir="ltr">${esc(r.code)}</span> · ${ago(r.createdAt)}</div>
+    <div class="row" style="margin-top:3px">${statusBadge(r.status)}${r.duplicateCount ? `<span class="badge plain" style="background:#FEF3C7;color:#92400E">×${r.duplicateCount + 1}</span>` : ''}${r.assigneeId ? `<span class="tiny muted">· ${esc(staff.find(s => s.id === r.assigneeId)?.name || '')}</span>` : ''}</div>
+    <div style="margin-top:4px">${slaBar(r)}</div></div></div>`).join('') || '<div class="muted small" style="padding:16px">لا توجد بلاغات</div>';
+}
+$('tabs').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.hasAttribute('data-late')) { $('lateOnly').checked = !$('lateOnly').checked; if ($('lateOnly').checked) tab = 'all'; }
+  else tab = b.dataset.t;
+  renderList();
+};
+['village', 'category', 'priority', 'assignee', 'lateOnly', 'sort'].forEach(id => $(id).onchange = renderList);
+$('q').oninput = renderList;
+$('clear').onclick = () => { ['q', 'village', 'category', 'priority', 'assignee'].forEach(id => $(id).value = ''); $('lateOnly').checked = false; $('sort').value = 'due'; tab = 'all'; renderList(); };
+document.getElementById('list').onclick = e => { const it = e.target.closest('.ritem'); if (it) open(it.dataset.id); };
+
+async function open(id) {
+  selected = id; renderList();
+  await renderDetail(document.getElementById('detail'), id, { actions: unitActions, onAction });
+}
+function unitActions(r) {
+  const b = (act, label, cls = 'ghost') => `<button class="btn ${cls}" data-act="${act}">${label}</button>`;
+  const s = r.status, out = [];
+  if (['ROUTED', 'REOPENED'].includes(s)) out.push(b('acknowledge', 'استلام البلاغ', ''));
+  if (['ROUTED', 'REOPENED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'PENDING_BUDGET', 'PARTIALLY_RESOLVED'].includes(s)) out.push(b('assign', r.assigneeId ? 'تغيير الموظف' : 'إسناد لموظف'));
+  if (['ACKNOWLEDGED', 'PENDING_BUDGET', 'PARTIALLY_RESOLVED', 'REOPENED'].includes(s)) out.push(b('start', 'بدء العمل'));
+  if (['ACKNOWLEDGED', 'IN_PROGRESS', 'PARTIALLY_RESOLVED', 'REOPENED'].includes(s)) out.push(b('resolve', 'تم الحل — رفع التقرير', ''));
+  if (['ACKNOWLEDGED', 'IN_PROGRESS'].includes(s)) out.push(b('pending_budget', 'يحتاج ميزانية'));
+  if (s === 'IN_PROGRESS') out.push(b('partial', 'حل جزئي'));
+  if (['ROUTED', 'ACKNOWLEDGED', 'REOPENED'].includes(s)) out.push(b('reject', 'رفض', 'danger'));
+  if (['ROUTED', 'ACKNOWLEDGED'].includes(s)) out.push(b('not_competent', 'ليس من اختصاصنا'));
+  if (s === 'RESOLVED') out.push('<div class="hint">تم رفع الحل — بانتظار تقييم المواطن أو مراجعة غرفة العمليات.</div>');
+  return out.join('');
+}
+async function onAction(act, r) {
+  try {
+    let body = {}, form;
+    if (act === 'assign') {
+      const v = await modal({ title: 'إسناد البلاغ لموظف', body: `<select class="input" id="s">${staff.map(s => `<option value="${s.id}" ${s.id === r.assigneeId ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select><div class="tiny muted">الموظف هيشوف البلاغ في حسابه، وأداؤه بيتحسب له وللوحدة.</div>`, actions: [{ label: 'إسناد', onClick: bg => bg.querySelector('#s').value }, { label: 'إلغاء', cls: 'ghost' }] });
+      if (!v) return; body.assigneeId = v;
+    }
+    if (act === 'reject' || act === 'not_competent') {
+      const reason = await askReason(act === 'reject' ? 'سبب رفض البلاغ' : 'لماذا البلاغ ليس من اختصاص الوحدة؟', act === 'reject' ? 'مثال: الموقع غير صحيح / تم الحل قبل البلاغ' : 'مثال: من اختصاص شركة المياه');
+      if (!reason) return; body.reason = reason;
+    }
+    if (act === 'pending_budget' || act === 'partial') {
+      const note = await askReason(act === 'pending_budget' ? 'تفاصيل الميزانية / الخطة' : 'ما الذي تم إنجازه؟', '', false);
+      if (note === null) return; body.note = note.trim();
+    }
+    if (act === 'resolve') { form = await resolveForm(r); if (!form) return; }
+    await doAction(r, act, body, form);
+    reports = await api('/api/reports');
+    open(r.id);
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function resolveForm(r) {
+  return modal({ title: 'تقرير الحل', body: `
+    <div class="hint">صورة الحل لازم تتصور <b>من الكاميرا</b> في موقع البلاغ (في حدود 100 م). السيستم بيتحقق من الإحداثيات.</div>
+    <label class="field"><span>صورة بعد الحل (إلزامي)</span><input type="file" id="ph" accept="image/*" capture="environment" class="input"></label>
+    <label class="chk small" style="background:var(--surface-2);padding:8px 10px;border-radius:10px"><input type="checkbox" id="demoLoc" checked> وضع العرض: اعتبر إني واقف في موقع البلاغ (بدل GPS الجهاز)</label>
+    <label class="field"><span>الإجراء المتخذ</span><input class="input" id="actionTaken" placeholder="مثال: رفع المخلفات وتطهير الموقع"></label>
+    <div class="row" style="gap:10px"><label class="field" style="flex:1"><span>سبب المشكلة</span><input class="input" id="cause"></label><label class="field" style="flex:1"><span>الجهة المنفذة</span><input class="input" id="executingParty" value="${esc(r.unitName)}"></label></div>
+    <div class="row" style="gap:10px"><label class="field" style="flex:1"><span>التكلفة التقديرية (ج.م)</span><input class="input num" type="number" id="cost"></label><label class="field" style="flex:1"><span>تاريخ التنفيذ</span><input class="input num" type="date" id="executedOn" value="${new Date().toISOString().slice(0, 10)}"></label></div>
+    <label class="field"><span>شرح تفصيلي لما حدث</span><textarea class="input" id="notes"></textarea></label>`,
+    actions: [{ label: 'رفع تقرير الحل', onClick: async bg => {
+      const ph = bg.querySelector('#ph').files[0];
+      if (!ph) { toast('صورة الحل إلزامية', 'err'); return false; }
+      if (!bg.querySelector('#actionTaken').value.trim()) { toast('اكتب الإجراء المتخذ', 'err'); return false; }
+      let loc;
+      if (bg.querySelector('#demoLoc').checked) loc = { lng: r.location[0] + 0.0002, lat: r.location[1] + 0.0001 };
+      else loc = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(p => res({ lng: p.coords.longitude, lat: p.coords.latitude }), () => rej(new Error('شغّل الـ GPS')), { enableHighAccuracy: true, timeout: 10000 }));
+      const fd = new FormData();
+      fd.append('photo', ph); fd.append('lng', loc.lng); fd.append('lat', loc.lat);
+      ['actionTaken', 'cause', 'executingParty', 'cost', 'executedOn', 'notes'].forEach(k => fd.append(k, bg.querySelector('#' + k).value));
+      return fd;
+    } }, { label: 'إلغاء', cls: 'ghost', value: null }] });
+}
+
+const socket = io();
+socket.on('report:new', async r => { if (r.unitId === me.unitId) { chime(); toast(`بلاغ جديد في نطاق وحدتك: ${catAr(r.category)} — ${r.villageName}`); reports = await api('/api/reports'); renderList(); } });
+socket.on('report:update', async r => { if (r.unitId === me.unitId) { reports = await api('/api/reports'); renderList(); if (selected === r.id) open(r.id); } });
+socket.on('demo:reset', boot);
+boot();
+</script>
+</body>
+</html>

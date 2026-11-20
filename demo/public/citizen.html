@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#187535">
+<title>بلّغ — تطبيق المواطن</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  body { background:#E6ECE8; }
+  .device { width:100%; max-width:420px; margin:0 auto; min-height:100vh; background:var(--bg); position:relative; display:flex; flex-direction:column; }
+  @media (min-width:600px) { body { padding:24px 0; } .device { min-height:calc(100vh - 48px); height:860px; max-height:calc(100vh - 48px); border-radius:38px; border:10px solid #16211A; box-shadow:0 30px 60px rgb(0 0 0/.25); overflow:hidden; } }
+  .screen { flex:1; overflow-y:auto; display:flex; flex-direction:column; }
+  .appbar { display:flex; align-items:center; gap:10px; padding:14px 16px; background:var(--surface); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  .appbar h1 { font-size:18px; margin:0; font-weight:600; }
+  .pad { padding:16px; }
+  .hero { background:linear-gradient(160deg,#187535,#135F2B); color:#fff; padding:22px 18px 26px; }
+  .hero h2 { margin:6px 0 4px; font-size:22px; }
+  .hero p { margin:0; opacity:.85; font-size:14px; }
+  .bigcta { display:flex; align-items:center; gap:12px; background:var(--surface); color:var(--text); border-radius:18px; padding:16px; margin:-18px 16px 0; box-shadow:var(--sh-md); border:0; width:calc(100% - 32px); cursor:pointer; text-align:right; }
+  .bigcta .ic { width:52px; height:52px; border-radius:14px; background:var(--primary); color:#fff; display:grid; place-items:center; flex:none; }
+  .bigcta b { font-size:18px; display:block; }
+  .emerg { display:flex; align-items:center; justify-content:center; gap:8px; margin:12px 16px 0; background:#FDECEC; color:#B91C1C; border:1px solid #F6C1C1; border-radius:14px; padding:12px; font-weight:600; cursor:pointer; width:calc(100% - 32px); }
+  .cats { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .cat { background:var(--surface); border:1.5px solid var(--border); border-radius:16px; padding:14px 6px 10px; text-align:center; cursor:pointer; font-size:13px; line-height:1.35; display:grid; justify-items:center; gap:8px; min-height:104px; }
+  .cat .ci { width:44px; height:44px; border-radius:12px; display:grid; place-items:center; background:var(--primary-soft); color:var(--primary); }
+  .cat.emergency .ci { background:#FDECEC; color:#DC2626; }
+  .cat.sel { border-color:var(--primary); background:var(--primary-soft); }
+  .steps { display:flex; gap:6px; padding:10px 16px 0; }
+  .steps i { flex:1; height:4px; border-radius:4px; background:var(--border); }
+  .steps i.on { background:var(--primary); }
+  .footer-cta { padding:12px 16px 18px; background:var(--surface); border-top:1px solid var(--border); position:sticky; bottom:0; }
+  .thumbs { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .thumbs .th { position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:var(--surface-2); }
+  .thumbs .th img, .thumbs .th video { width:100%; height:100%; object-fit:cover; }
+  .thumbs .th button { position:absolute; top:4px; left:4px; width:26px; height:26px; border-radius:50%; border:0; background:rgb(0 0 0/.55); color:#fff; cursor:pointer; display:grid; place-items:center; }
+  .thumbs .th .g { position:absolute; bottom:4px; right:4px; font-size:10px; background:rgb(0 0 0/.55); color:#fff; padding:1px 6px; border-radius:6px; }
+  .addmedia { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .addmedia label, .addmedia button { display:grid; justify-items:center; gap:4px; padding:12px 4px; border:1.5px dashed var(--border); border-radius:14px; background:var(--surface); color:var(--primary); font-size:12px; font-weight:500; cursor:pointer; }
+  .addmedia input { display:none; }
+  #pickMap { height:300px; border-radius:16px; overflow:hidden; border:1px solid var(--border); }
+  .locbox { display:flex; gap:10px; align-items:flex-start; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px; }
+  .locbox.ok { border-color:var(--green-100); background:var(--primary-soft); }
+  .locbox.bad { border-color:#F6C1C1; background:#FDECEC; }
+  .myr { display:grid; grid-template-columns:56px 1fr; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:10px; cursor:pointer; }
+  .myr img { width:56px; height:56px; border-radius:10px; object-fit:cover; }
+  .success { text-align:center; padding:40px 20px; display:grid; gap:10px; justify-items:center; }
+  .success .ok { width:84px; height:84px; border-radius:50%; background:var(--primary-soft); color:var(--primary); display:grid; place-items:center; }
+  .code { font-size:26px; font-weight:700; letter-spacing:1px; direction:ltr; }
+  .stars { display:flex; gap:6px; justify-content:center; direction:ltr; }
+  .stars button { font-size:34px; border:0; background:none; cursor:pointer; color:#D9E1DB; line-height:1; }
+  .stars button.on { color:var(--gold-500); }
+  .rec { display:flex; align-items:center; gap:10px; }
+  .rec .dotrec { width:10px; height:10px; border-radius:50%; background:#DC2626; animation:blink 1s infinite; }
+  @keyframes blink { 50% { opacity:.2; } }
+  .offline { background:#16211A; color:#fff; text-align:center; font-size:13px; padding:6px; }
+  .otp { display:flex; gap:8px; direction:ltr; justify-content:center; }
+  .otp input { width:56px; height:60px; text-align:center; font-size:26px; font-weight:700; border:1.5px solid var(--border); border-radius:12px; }
+  .sso { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .lang { position:absolute; top:14px; left:16px; }
+</style>
+</head>
+<body>
+<div class="device">
+  <div id="offline" class="offline hidden">أنت غير متصل — البلاغات هتتحفظ وتتبعت أول ما النت يرجع</div>
+  <div class="screen" id="app"></div>
+</div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script type="module">
+import { api, meta, useUser, getUser, setUser, toast, esc, dt, ago, statusBadge, priorityBadge, timeline, gallery, catAr, statusAr, slaBar } from '/js/common.js';
+import { icon } from '/js/icons.js';
+import { createMap } from '/js/map.js';
+
+const $app = document.getElementById('app');
+let M, user = getUser('citizen');
+const draft = { category: null, files: [], description: '', answers: {}, audio: null, loc: null, locInfo: null, gps: null };
+const QUEUE_KEY = 'ballegh:queue';
+
+function render(html) { $app.innerHTML = html; $app.scrollTop = 0; }
+function appbar(title, back) { return `<div class="appbar">${back ? `<button class="icon-btn" data-back aria-label="رجوع">${icon('back', 20)}</button>` : ''}<h1>${esc(title)}</h1><span class="spacer"></span></div>`; }
+$app.addEventListener('click', e => { if (e.target.closest('[data-back]')) history.back(); });
+
+// --- simple hash router ---
+const routes = { '': home, login, new: step1, media: step2, location: step3, done: doneScreen, report: reportScreen };
+window.addEventListener('hashchange', route);
+function go(h) { location.hash = h; }
+function route() {
+  const [name, arg] = location.hash.slice(1).split('/');
+  if (!user && name !== 'login') return go('login');
+  (routes[name] || home)(arg);
+}
+
+// ---------- login ----------
+function login() {
+  render(`<div class="pad" style="padding-top:48px;display:grid;gap:18px">
+    <div style="text-align:center"><img src="/brand/ballegh-mark.svg" width="84" alt=""><h2 style="margin:8px 0 0;font-size:30px;color:var(--green-500)">بلّغ</h2><div class="muted small">منصة بلاغات محافظة الفيوم</div></div>
+    <div id="lstep"></div></div>`);
+  const box = document.getElementById('lstep');
+  const phoneStep = () => {
+    box.innerHTML = `<div class="stack"><label class="field"><span>رقم الموبايل</span><input class="input num" id="phone" inputmode="tel" placeholder="01xxxxxxxxx" dir="ltr" style="text-align:right;font-size:18px"></label>
+      <label class="field"><span>الاسم</span><input class="input" id="nm" placeholder="الاسم بالكامل"></label>
+      <button class="btn lg block" id="send">إرسال كود التحقق</button>
+      <div class="row muted small" style="justify-content:center">أو سجّل دخول بـ</div>
+      <div class="sso"><button class="btn ghost" data-sso>Google</button><button class="btn ghost" data-sso>Microsoft</button></div>
+      <div class="hint">في كل الحالات تأكيد رقم الموبايل بكود OTP إلزامي، ومفيش بلاغات مجهولة. <b>للعرض:</b> الكود هو 1234.</div>
+      <button class="btn secondary block" id="demo">دخول سريع بحساب تجريبي</button></div>`;
+    box.querySelector('#send').onclick = async () => {
+      try { const phone = box.querySelector('#phone').value; await api('/api/auth/otp', { method: 'POST', body: { phone } }); otpStep(phone, box.querySelector('#nm').value); } catch (e) { toast(e.message, 'err'); }
+    };
+    box.querySelectorAll('[data-sso]').forEach(b => b.onclick = () => toast('في النظام الفعلي: دخول بالحساب ثم تأكيد رقم الموبايل بكود OTP'));
+    box.querySelector('#demo').onclick = () => { user = { id: 'c-demo', name: 'مواطن تجريبي', phone: '01000000000' }; setUser(user, 'citizen'); go(''); };
+  };
+  const otpStep = (phone, name) => {
+    box.innerHTML = `<div class="stack" style="text-align:center"><div>أدخل الكود المرسل إلى <b class="num" dir="ltr">${esc(phone)}</b></div>
+      <div class="otp">${[0, 1, 2, 3].map(() => '<input maxlength="1" inputmode="numeric">').join('')}</div>
+      <button class="btn lg block" id="verify">تأكيد</button><div class="muted small">للعرض: 1234</div></div>`;
+    const ins = [...box.querySelectorAll('.otp input')];
+    ins.forEach((i, k) => i.addEventListener('input', () => { if (i.value && ins[k + 1]) ins[k + 1].focus(); }));
+    ins[0].focus();
+    box.querySelector('#verify').onclick = async () => {
+      try { user = await api('/api/auth/verify', { method: 'POST', body: { phone, code: ins.map(i => i.value).join(''), name } }); setUser(user, 'citizen'); go(''); } catch (e) { toast(e.message, 'err'); }
+    };
+  };
+  phoneStep();
+}
+
+// ---------- home ----------
+async function home() {
+  useUser(user.id);
+  render(`<div class="hero"><div class="row"><img src="/brand/ballegh-mark.svg" width="30" style="filter:brightness(0) invert(1)" alt=""><b style="font-size:20px">بلّغ</b><span class="spacer"></span><button class="icon-btn" id="logout" style="background:transparent;border-color:rgb(255 255 255/.3);color:#fff" aria-label="خروج">${icon('logout', 18)}</button></div>
+      <h2>أهلاً ${esc(user.name || '')}</h2><p>صوّر المشكلة، والوحدة المحلية المختصة هتستلمها فوراً.</p></div>
+    <button class="bigcta" id="new"><span class="ic">${icon('plus', 28)}</span><span><b>بلاغ جديد</b><span class="muted small">3 خطوات بس: النوع، الصور، الموقع</span></span></button>
+    <button class="emerg" id="emerg">${icon('alert', 20)} بلاغ طوارئ (حريق / انهيار)</button>
+    <div class="pad"><div class="row"><h3 style="margin:8px 0;font-size:16px">بلاغاتي</h3><span class="spacer"></span><span class="muted small" id="cnt"></span></div><div class="stack" id="mine"><div class="muted small">جاري التحميل…</div></div></div>`);
+  document.getElementById('new').onclick = () => { resetDraft(); go('new'); };
+  document.getElementById('emerg').onclick = () => { resetDraft(); draft.category = 'emergency'; emergencySheet(); };
+  document.getElementById('logout').onclick = () => { setUser(null, 'citizen'); user = null; go('login'); };
+  const queued = getQueue();
+  try {
+    const list = await api('/api/reports');
+    document.getElementById('cnt').textContent = `${list.length} بلاغ`;
+    document.getElementById('mine').innerHTML = (queued.map(q => `<div class="myr" style="opacity:.75"><div style="display:grid;place-items:center;background:var(--surface-2);border-radius:10px">${icon('bell')}</div><div><b>${esc(catAr(q.category))}</b><div class="small muted">في الانتظار — هيتبعت أول ما النت يرجع</div></div></div>`).join('')) +
+      (list.length ? list.map(r => `<div class="myr" data-id="${r.id}"><img src="${esc(r.thumb || '/img/placeholder/other.svg')}" alt=""><div><div class="row"><b style="font-size:14px">${esc(catAr(r.category))}</b><span class="spacer"></span>${statusBadge(r.status)}</div>
+        <div class="small muted">${esc(r.villageName || r.noUnitArea || '')} · <span class="num" dir="ltr">${esc(r.code)}</span></div><div class="tiny muted">${ago(r.createdAt)}${r.isDuplicate ? ' · تم ضمه لبلاغ سابق' : ''}${r.status === 'RESOLVED' && !r.rated ? ' · <b style="color:var(--gold-700)">قيّم الحل</b>' : ''}</div></div></div>`).join('')
+        : '<div class="card muted small" style="text-align:center">لسه مقدمتش بلاغات</div>');
+    document.querySelectorAll('.myr[data-id]').forEach(el => el.onclick = () => go('report/' + el.dataset.id));
+  } catch (e) { document.getElementById('mine').innerHTML = `<div class="danger-note">${esc(e.message)}</div>`; }
+}
+
+function resetDraft() { Object.assign(draft, { category: null, files: [], description: '', answers: {}, audio: null, loc: null, locInfo: null }); startGps(); }
+
+function emergencySheet() {
+  render(`${appbar('بلاغ طوارئ', true)}<div class="pad stack">
+    <div class="danger-note" style="font-size:15px"><b>لو في خطر على حياة حد، اتصل فوراً:</b></div>
+    <div class="stack">${[['الحماية المدنية (المطافي)', '180'], ['الإسعاف', '123'], ['شرطة النجدة', '122']].map(([n, t]) => `<a class="btn danger lg block" href="tel:${t}" style="justify-content:space-between"><span>${n}</span><span class="num">${t}</span></a>`).join('')}</div>
+    <p class="muted small">بلاغ الطوارئ في «بلّغ» بيوصل فوراً لغرفة العمليات وللمحافظ بأولوية «حرج»، لكنه مش بديل عن الاتصال بأرقام الطوارئ.</p>
+    <button class="btn lg block" id="cont">متابعة إرسال بلاغ الطوارئ</button></div>`);
+  document.getElementById('cont').onclick = () => go('media');
+}
+
+// ---------- step 1: category ----------
+function steps(n) { return `<div class="steps">${[1, 2, 3].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</div>`; }
+function step1() {
+  render(`${appbar('بلاغ جديد', true)}${steps(1)}<div class="pad"><h3 style="margin:4px 0 12px;font-size:17px">إيه نوع المشكلة؟</h3>
+    <div class="cats">${M.categories.map(c => `<button class="cat ${c.emergency ? 'emergency' : ''} ${draft.category === c.code ? 'sel' : ''}" data-c="${c.code}"><span class="ci">${icon(c.code, 24)}</span>${esc(c.ar)}</button>`).join('')}</div></div>`);
+  $app.querySelectorAll('.cat').forEach(b => b.onclick = () => { draft.category = b.dataset.c; if (b.dataset.c === 'emergency') emergencySheet(); else go('media'); });
+}
+
+// ---------- step 2: media + description ----------
+function step2() {
+  if (!draft.category) return go('new');
+  const cat = M.categories.find(c => c.code === draft.category);
+  const hasVideo = draft.files.some(f => f.type.startsWith('video'));
+  render(`${appbar(cat.ar, true)}${steps(2)}<div class="pad stack">
+    <div><h3 style="margin:4px 0 4px;font-size:17px">صوّر المشكلة</h3><div class="muted small">حتى 5 صور أو فيديو واحد (5 دقائق بحد أقصى)</div></div>
+    <div class="thumbs" id="thumbs"></div>
+    <div class="addmedia">
+      <label>${icon('camera')} التقط صورة<input type="file" accept="image/*" capture="environment" data-src="camera" ${hasVideo ? 'disabled' : ''}></label>
+      <label>${icon('image')} من المعرض<input type="file" accept="image/*" multiple data-src="gallery" ${hasVideo ? 'disabled' : ''}></label>
+      <label>${icon('video')} فيديو<input type="file" accept="video/*" capture="environment" data-src="video" ${draft.files.length ? 'disabled' : ''}></label>
+    </div>
+    ${cat.questions.length ? `<div class="stack">${cat.questions.map((q, i) => `<label class="field"><span>${esc(q)}</span><input class="input" data-q="${i}" value="${esc(draft.answers[q] || '')}"></label>`).join('')}</div>` : ''}
+    <label class="field"><span>وصف المشكلة</span><textarea class="input" id="desc" placeholder="اكتب وصف مختصر للمشكلة…">${esc(draft.description)}</textarea></label>
+    <div class="card" style="padding:12px"><div class="rec" id="rec"><button class="btn secondary sm" id="recBtn">${icon('mic', 16)} ${draft.audio ? 'إعادة التسجيل' : 'وصف صوتي'}</button><span class="small muted" id="recTxt">${draft.audio ? 'تم تسجيل وصف صوتي ✓' : 'بدل الكتابة — حد أقصى دقيقتين'}</span></div>${draft.audio ? `<audio controls src="${URL.createObjectURL(draft.audio)}" style="width:100%;margin-top:8px"></audio>` : ''}</div>
+  </div><div class="footer-cta"><button class="btn lg block" id="next">التالي: تأكيد الموقع</button></div>`);
+  renderThumbs();
+  $app.querySelectorAll('.addmedia input').forEach(inp => inp.onchange = () => addFiles([...inp.files], inp.dataset.src));
+  const saveText = () => { draft.description = document.getElementById('desc').value; $app.querySelectorAll('[data-q]').forEach(i => draft.answers[cat.questions[i.dataset.q]] = i.value); };
+  document.getElementById('desc').oninput = saveText;
+  $app.querySelectorAll('[data-q]').forEach(i => i.oninput = saveText);
+  document.getElementById('recBtn').onclick = recordVoice;
+  document.getElementById('next').onclick = () => {
+    saveText();
+    if (!draft.files.length && !draft.audio && !draft.description.trim()) return toast('ضيف صورة أو وصف للمشكلة', 'err');
+    go('location');
+  };
+}
+function addFiles(files, src) {
+  for (const f of files) {
+    if (f.type.startsWith('video')) {
+      if (draft.files.length) { toast('الفيديو لوحده بس — من غير صور', 'err'); continue; }
+      const v = document.createElement('video'); v.preload = 'metadata'; v.src = URL.createObjectURL(f);
+      v.onloadedmetadata = () => { if (v.duration > 300) { toast('مدة الفيديو أكثر من 5 دقائق', 'err'); draft.files = draft.files.filter(x => x.file !== f); renderThumbs(); } };
+      draft.files.push({ file: f, type: f.type, fromGallery: false });
+    } else {
+      if (draft.files.filter(x => x.type.startsWith('image')).length >= 5) { toast('الحد الأقصى 5 صور', 'err'); break; }
+      draft.files.push({ file: f, type: f.type, fromGallery: src === 'gallery', exifTakenAt: src === 'gallery' ? f.lastModified : null });
+    }
+  }
+  step2();
+}
+function renderThumbs() {
+  const box = document.getElementById('thumbs');
+  box.innerHTML = draft.files.map((f, i) => `<div class="th">${f.type.startsWith('video') ? `<video src="${URL.createObjectURL(f.file)}" muted></video>` : `<img src="${URL.createObjectURL(f.file)}" alt="">`}<button data-rm="${i}" aria-label="حذف">${icon('x', 14)}</button>${f.fromGallery ? '<span class="g">من المعرض</span>' : ''}</div>`).join('');
+  box.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { draft.files.splice(Number(b.dataset.rm), 1); step2(); });
+}
+let recorder = null;
+async function recordVoice() {
+  const btn = document.getElementById('recBtn'), txt = document.getElementById('recTxt');
+  if (recorder) { recorder.stop(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const chunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); draft.audio = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }); recorder = null; step2(); };
+    recorder.start();
+    btn.innerHTML = `${icon('check', 16)} إيقاف`; txt.innerHTML = '<span class="dotrec"></span> جاري التسجيل…';
+    setTimeout(() => recorder?.state === 'recording' && recorder.stop(), 120000);
+  } catch { toast('مش قادر أوصل للميكروفون', 'err'); }
+}
+
+// ---------- step 3: location ----------
+function startGps() {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(p => { draft.gps = { lng: p.coords.longitude, lat: p.coords.latitude, accuracy: Math.round(p.coords.accuracy) }; }, () => {}, { enableHighAccuracy: true, timeout: 10000 });
+}
+let pickMap, marker;
+function step3() {
+  if (!draft.category) return go('new');
+  render(`${appbar('تأكيد الموقع', true)}${steps(3)}<div class="pad stack">
+    <div class="muted small">الموقع بيتحدد تلقائياً من الـ GPS. لو مش دقيق، اسحب الدبوس أو اضغط على الخريطة.</div>
+    <div id="pickMap"></div>
+    <div class="row wrap"><button class="btn ghost sm" id="gps">${icon('locate', 16)} موقعي الحالي</button><button class="btn ghost sm" id="demoLoc">${icon('pin', 16)} موقع تجريبي في الفيوم</button></div>
+    <div id="locInfo" class="locbox"><span class="muted small">جاري تحديد الموقع…</span></div>
+  </div><div class="footer-cta"><button class="btn lg block" id="send" disabled>إرسال البلاغ</button></div>`);
+  pickMap = createMap('pickMap', { zoom: 9 });
+  marker = new maplibregl.Marker({ color: '#187535', draggable: true });
+  marker.on('dragend', () => { const l = marker.getLngLat(); setLoc(l.lng, l.lat, 'manual'); });
+  pickMap.on('click', e => setLoc(e.lngLat.lng, e.lngLat.lat, 'manual'));
+  document.getElementById('gps').onclick = () => {
+    if (!navigator.geolocation) return toast('الجهاز مش بيدعم تحديد الموقع', 'err');
+    navigator.geolocation.getCurrentPosition(p => setLoc(p.coords.longitude, p.coords.latitude, 'gps', Math.round(p.coords.accuracy)),
+      () => toast('شغّل خدمة الموقع (GPS) من إعدادات الموبايل', 'err'), { enableHighAccuracy: true, timeout: 10000 });
+  };
+  document.getElementById('demoLoc').onclick = demoLocation;
+  document.getElementById('send').onclick = submit;
+  if (draft.loc) setLoc(draft.loc.lng, draft.loc.lat, draft.loc.source, draft.loc.accuracy);
+  else if (draft.gps) setLoc(draft.gps.lng, draft.gps.lat, 'gps', draft.gps.accuracy);
+  else document.getElementById('gps').click();
+}
+async function demoLocation() {
+  const g = await api('/api/geo');
+  const vs = g.villages.features.filter(f => f.properties.kind === 'قرية');
+  const v = vs[Math.floor(Math.random() * vs.length)].properties;
+  setLoc(v.lng + (Math.random() - 0.5) * 0.006, v.lat + (Math.random() - 0.5) * 0.006, 'gps', 8);
+}
+async function setLoc(lng, lat, source, accuracy) {
+  draft.loc = { lng, lat, source, accuracy };
+  marker.setLngLat([lng, lat]).addTo(pickMap);
+  pickMap.easeTo({ center: [lng, lat], zoom: Math.max(pickMap.getZoom(), 14) });
+  const box = document.getElementById('locInfo'), btn = document.getElementById('send');
+  try {
+    const info = await api(`/api/locate?lng=${lng}&lat=${lat}`);
+    draft.locInfo = info;
+    if (!info.inside) { box.className = 'locbox bad'; box.innerHTML = `${icon('alert')}<div><b>الموقع خارج محافظة الفيوم</b><div class="small">حدّد مكان المشكلة داخل المحافظة، أو جرّب «موقع تجريبي».</div></div>`; btn.disabled = true; return; }
+    box.className = 'locbox ok';
+    box.innerHTML = info.unit
+      ? `${icon('pin')}<div><b>${esc(info.village.name)} — ${esc(info.center.name)}</b><div class="small">البلاغ هيروح تلقائياً إلى: <b>${esc(info.unit.name)}</b></div><div class="tiny muted num">${lat.toFixed(5)}, ${lng.toFixed(5)}${accuracy ? ` · دقة ±${accuracy} م` : ''} · ${source === 'gps' ? 'GPS' : 'تحديد يدوي'}</div></div>`
+      : `${icon('pin')}<div><b>${esc(info.noUnitArea)}</b><div class="small">المنطقة دي مش تابعة لوحدة محلية — البلاغ هيروح لغرفة العمليات بالمحافظة.</div></div>`;
+    btn.disabled = false;
+  } catch (e) { box.className = 'locbox bad'; box.textContent = e.message; btn.disabled = true; }
+}
+
+// Watermark: date, time, coordinates, report brand — burned into the photo
+async function watermark(file, loc) {
+  const img = await createImageBitmap(file);
+  const scale = Math.min(1, 1600 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+  const g = c.getContext('2d');
+  g.drawImage(img, 0, 0, c.width, c.height);
+  const h = Math.max(46, c.height * 0.075);
+  g.fillStyle = 'rgba(14,21,17,.62)'; g.fillRect(0, c.height - h, c.width, h);
+  g.fillStyle = '#fff'; g.font = `600 ${Math.round(h * 0.34)}px "Readex Pro", Tahoma, sans-serif`; g.textBaseline = 'middle';
+  g.direction = 'ltr'; g.textAlign = 'left';
+  g.fillText(`${new Date().toLocaleString('en-GB')}  |  ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`, h * 0.35, c.height - h / 2);
+  g.direction = 'rtl'; g.textAlign = 'right'; g.fillStyle = '#F4A21D';
+  g.fillText('بلّغ', c.width - h * 0.35, c.height - h / 2);
+  return new Promise(r => c.toBlob(b => r(new File([b], 'photo.jpg', { type: 'image/jpeg' })), 'image/jpeg', 0.82));
+}
+
+async function buildForm() {
+  const fd = new FormData();
+  fd.append('category', draft.category); fd.append('description', draft.description);
+  fd.append('guidedAnswers', JSON.stringify(draft.answers));
+  fd.append('lng', draft.loc.lng); fd.append('lat', draft.loc.lat);
+  if (draft.loc.accuracy) fd.append('accuracy', draft.loc.accuracy);
+  fd.append('locationSource', draft.loc.source);
+  const metaArr = [];
+  for (const f of draft.files) {
+    if (f.type.startsWith('image')) { fd.append('media', await watermark(f.file, draft.loc)); metaArr.push({ fromGallery: f.fromGallery, exifTakenAt: f.exifTakenAt, watermarked: true }); }
+    else { fd.append('media', f.file); metaArr.push({ fromGallery: f.fromGallery }); }
+  }
+  if (draft.audio) fd.append('media', new File([draft.audio], 'voice.webm', { type: draft.audio.type || 'audio/webm' }));
+  fd.append('mediaMeta', JSON.stringify(metaArr));
+  return fd;
+}
+
+async function submit() {
+  const btn = document.getElementById('send'); btn.disabled = true; btn.textContent = 'جاري الإرسال…';
+  if (!navigator.onLine) { await enqueue(); toast('اتحفظ البلاغ — هيتبعت أول ما النت يرجع', 'ok'); return go(''); }
+  try {
+    const out = await api('/api/reports', { method: 'POST', form: await buildForm() });
+    sessionStorage.setItem('ballegh:last', JSON.stringify(out));
+    go('done');
+  } catch (e) { toast(e.message, 'err'); btn.disabled = false; btn.textContent = 'إرسال البلاغ'; }
+}
+
+// ---------- offline queue (photos kept as data URLs) ----------
+const getQueue = () => { try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; } catch { return []; } };
+const toDataUrl = blob => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+async function enqueue() {
+  const photos = [];
+  for (const f of draft.files.filter(f => f.type.startsWith('image'))) photos.push({ data: await toDataUrl(await watermark(f.file, draft.loc)), fromGallery: f.fromGallery });
+  const q = getQueue(); q.push({ category: draft.category, description: draft.description, answers: draft.answers, loc: draft.loc, photos, createdOfflineAt: Date.now() });
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)); } catch { toast('مساحة التخزين ممتلئة', 'err'); }
+}
+async function flushQueue() {
+  const q = getQueue(); if (!q.length || !navigator.onLine || !user) return;
+  const left = [];
+  for (const item of q) {
+    try {
+      const fd = new FormData();
+      fd.append('category', item.category); fd.append('description', item.description); fd.append('guidedAnswers', JSON.stringify(item.answers));
+      fd.append('lng', item.loc.lng); fd.append('lat', item.loc.lat); fd.append('locationSource', item.loc.source);
+      for (const p of item.photos) fd.append('media', await (await fetch(p.data)).blob(), 'photo.jpg');
+      fd.append('mediaMeta', JSON.stringify(item.photos.map(p => ({ fromGallery: p.fromGallery, watermarked: true, createdOfflineAt: item.createdOfflineAt }))));
+      await api('/api/reports', { method: 'POST', form: fd });
+    } catch { left.push(item); }
+  }
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(left));
+  if (left.length < q.length) { toast(`تم إرسال ${q.length - left.length} بلاغ محفوظ`, 'ok'); if (!location.hash || location.hash === '#') home(); }
+}
+const netState = () => { document.getElementById('offline').classList.toggle('hidden', navigator.onLine); if (navigator.onLine) flushQueue(); };
+window.addEventListener('online', netState); window.addEventListener('offline', netState);
+
+// ---------- done ----------
+function doneScreen() {
+  const out = JSON.parse(sessionStorage.getItem('ballegh:last') || '{}');
+  render(`<div class="success"><div class="ok">${icon('check', 44)}</div><h2 style="margin:6px 0 0">تم استلام بلاغك</h2>
+    <div class="muted small">رقم البلاغ</div><div class="code num">${esc(out.code || '')}</div>
+    ${out.duplicateOf ? `<div class="hint">نفس المشكلة اتبلّغ عنها قبل كده (${esc(out.duplicateOf)})، فبلاغك اتضم ليها، وده بيرفع أولويتها.</div>`
+      : out.unitName ? `<div class="card small">اتحوّل تلقائياً إلى <b>${esc(out.unitName)}</b>. هيوصلك إشعار مع كل تحديث.</div>`
+        : `<div class="card small">اتحوّل لغرفة العمليات بالمحافظة (${esc(out.noUnitArea || '')}).</div>`}
+    <div class="row" style="width:100%;margin-top:10px"><button class="btn secondary block" id="view">متابعة البلاغ</button><button class="btn block" id="home">الرئيسية</button></div></div>`);
+  document.getElementById('home').onclick = () => go('');
+  document.getElementById('view').onclick = () => go('report/' + out.id);
+}
+
+// ---------- report detail ----------
+async function reportScreen(id) {
+  render(`${appbar('تفاصيل البلاغ', true)}<div class="pad muted">جاري التحميل…</div>`);
+  let r;
+  try { r = await api('/api/reports/' + id); } catch (e) { return render(`${appbar('تفاصيل البلاغ', true)}<div class="pad danger-note">${esc(e.message)}</div>`); }
+  const events = r.events.filter(e => !['priority_changed', 'escalated', 'duplicate_merged', 'category_changed'].includes(e.action)).map(e => ({ ...e, actorName: ['CITIZEN'].includes(e.role) ? 'أنت' : e.role === 'SYSTEM' ? 'النظام' : (e.role === 'UNIT_HEAD' || e.role === 'UNIT_STAFF') ? r.unitName : 'غرفة العمليات', role: null }));
+  render(`${appbar('تفاصيل البلاغ', true)}<div class="pad stack detail">
+    <div class="row"><h2 style="font-size:18px">${esc(catAr(r.category))}</h2><span class="spacer"></span>${statusBadge(r.status)}</div>
+    <div class="small muted"><span class="num" dir="ltr">${esc(r.code)}</span> · ${esc(r.villageName || r.noUnitArea || '')} · ${dt(r.createdAt)}</div>
+    ${r.isDuplicate ? `<div class="hint">بلاغك اتضم لبلاغ سابق عن نفس المشكلة (${esc(r.masterCode)}) — الحالة هنا هي حالة البلاغ الرئيسي.</div>` : ''}
+    ${r.unitName ? `<div class="card small">الجهة المسؤولة: <b>${esc(r.unitName)}</b></div>` : ''}
+    ${slaBar(r)}
+    ${r.media?.length ? gallery(r.media) : ''}
+    ${r.description ? `<div class="card small">${esc(r.description)}</div>` : ''}
+    ${r.resolution ? `<div class="card"><h3>تقرير الحل</h3><div class="gallery" style="margin-bottom:8px"><img src="${esc(r.resolution.photo)}" data-zoom alt="صورة بعد الحل"></div><dl class="kv small"><dt>الإجراء</dt><dd>${esc(r.resolution.actionTaken || '')}</dd><dt>الجهة المنفذة</dt><dd>${esc(r.resolution.executingParty || '')}</dd><dt>التاريخ</dt><dd class="num">${esc(r.resolution.executedOn || '')}</dd>${r.resolution.notes ? `<dt>ملاحظات</dt><dd>${esc(r.resolution.notes)}</dd>` : ''}</dl></div>` : ''}
+    ${r.rejection && r.status === 'REJECTED' ? `<div class="danger-note">الوحدة رفضت البلاغ: ${esc(r.rejection.reason)} — غرفة العمليات بتراجع الرفض.</div>` : ''}
+    <div id="rate"></div>
+    <div class="section-title">مراحل البلاغ</div>${timeline(events)}
+  </div>`);
+  if (r.status === 'RESOLVED' && !r.rating && !r.isDuplicate) rateBox(r);
+  else if (r.rating) document.getElementById('rate').innerHTML = `<div class="card small">تقييمك: <b style="color:var(--gold-500)">${'★'.repeat(r.rating.stars)}</b> — ${r.rating.resolved ? 'اتحلت' : 'متحلتش'}</div>`;
+}
+function rateBox(r) {
+  let stars = 0;
+  const box = document.getElementById('rate');
+  box.innerHTML = `<div class="card stack" style="text-align:center"><h3 style="margin:0">قيّم الحل</h3><div class="stars">${[1, 2, 3, 4, 5].map(i => `<button data-s="${i}">★</button>`).join('')}</div>
+    <div class="row"><button class="btn block" data-res="1">${icon('check', 18)} اتحلت</button><button class="btn danger block" data-res="0">متحلتش</button></div>
+    <div class="tiny muted">لو اخترت «متحلتش» البلاغ هيتفتح تاني ويتصعّد لغرفة العمليات.</div></div>`;
+  box.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { stars = Number(b.dataset.s); box.querySelectorAll('[data-s]').forEach(x => x.classList.toggle('on', Number(x.dataset.s) <= stars)); });
+  box.querySelectorAll('[data-res]').forEach(b => b.onclick = async () => {
+    if (!stars) return toast('اختار عدد النجوم الأول', 'err');
+    try { await api(`/api/reports/${r.id}/actions/rate`, { method: 'POST', body: { stars, resolved: b.dataset.res === '1' } }); toast('شكراً لتقييمك', 'ok'); reportScreen(r.id); } catch (e) { toast(e.message, 'err'); }
+  });
+}
+
+// live updates for my reports
+const sock = document.createElement('script'); sock.src = '/socket.io/socket.io.js';
+sock.onload = () => { const s = io(); s.on('report:update', () => { const [n, a] = location.hash.slice(1).split('/'); if (n === 'report') reportScreen(a); else if (!n) home(); }); };
+document.head.appendChild(sock);
+
+M = await meta();
+if (user) useUser(user.id);
+netState();
+route();
+</script>
+</body>
+</html>

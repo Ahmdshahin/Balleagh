@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مقترحات لوجو بلّغ</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800&family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root { --g5:#1E8A3E; --g6:#187535; --gold:#F4A21D; --gold7:#B06E07; --muted:#5A6B60; --bg:#F7F9F7; --card:#fff; --border:#D9E1DB; --text:#16211A; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans Arabic',sans-serif; padding:32px 16px; }
+  h1 { font-family:'Cairo'; margin:0 0 4px; font-size:28px; }
+  p.lead { margin:0 0 28px; color:var(--muted); }
+  .grid { display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); max-width:1200px; }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+  .card h2 { font-family:'Cairo'; font-size:20px; margin:0; padding:16px 20px 4px; }
+  .card .why { padding:0 20px 12px; color:var(--muted); font-size:14px; line-height:1.7; min-height:72px; }
+  .stage { display:flex; align-items:center; justify-content:center; gap:20px; padding:24px 16px; }
+  .light { background:#fff; border-top:1px solid var(--border); }
+  .dark { background:#0E1511; }
+  .lockup { display:flex; align-items:center; gap:14px; }
+  .lockup svg { width:68px; height:68px; flex:none; }
+  .word b { display:block; font-family:'Cairo'; font-weight:800; font-size:34px; line-height:1.1; color:var(--g5); }
+  .word span { display:block; font-size:13px; color:var(--muted); margin-top:4px; }
+  .word i { display:block; font-style:normal; font-size:11px; letter-spacing:2.5px; color:var(--gold7); font-weight:600; font-family:sans-serif; margin-top:2px; direction:ltr; text-align:right; }
+  .dark .word b { color:#3FA765; } .dark .word span { color:#9AAB9F; } .dark .word i { color:#F8C463; }
+  .icons { display:flex; gap:14px; align-items:end; }
+  .icons .app { width:72px; height:72px; border-radius:16px; background:var(--g6); display:grid; place-items:center; }
+  .icons .app svg { width:46px; height:46px; }
+  .icons .fav svg { width:24px; height:24px; }
+</style>
+</head>
+<body>
+<h1>مقترحات لوجو «بلّغ» — الجولة الثانية</h1>
+<p class="lead">أربع أفكار بتعبّر عن <b>البلاغ</b> نفسه. كل فكرة معروضة على خلفية فاتحة وداكنة، ومعاها أيقونة التطبيق ومقاس الـ favicon.</p>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- D: megaphone (points left, toward reading direction) -->
+    <symbol id="markD" viewBox="0 0 124 120">
+      <g transform="translate(124 0) scale(-1 1)">
+        <rect x="6" y="42" width="24" height="36" rx="9" fill="var(--pin,#1E8A3E)"/>
+        <path d="M26 47 L72 26 V94 L26 73 Z" fill="var(--pin,#1E8A3E)"/>
+        <rect x="70" y="14" width="16" height="92" rx="8" fill="var(--pin,#1E8A3E)"/>
+        <path d="M34 74 L42 100 Q44 106 50 106 H54 Q60 106 58 100 L52 80 Z" fill="var(--pin,#1E8A3E)"/>
+        <g fill="none" stroke="#F4A21D" stroke-width="7" stroke-linecap="round">
+          <path d="M98 46 A18 18 0 0 1 98 74"/>
+          <path d="M106 32 A34 34 0 0 1 106 88"/>
+        </g>
+      </g>
+    </symbol>
+    <!-- E: speech bubble + exclamation -->
+    <symbol id="markE" viewBox="0 0 120 124">
+      <rect x="4" y="6" width="112" height="94" rx="28" fill="var(--pin,#1E8A3E)"/>
+      <path d="M78 92 L96 120 L50 98 Z" fill="var(--pin,#1E8A3E)"/>
+      <rect x="53" y="22" width="14" height="46" rx="7" fill="var(--ink,#fff)"/>
+      <circle cx="60" cy="83" r="8.5" fill="#F4A21D"/>
+    </symbol>
+    <!-- F: camera + location pin lens -->
+    <symbol id="markF" viewBox="0 0 120 116">
+      <rect x="36" y="10" width="40" height="24" rx="7" fill="var(--pin,#1E8A3E)"/>
+      <rect x="4" y="26" width="112" height="86" rx="20" fill="var(--pin,#1E8A3E)"/>
+      <circle cx="60" cy="69" r="31" fill="var(--ink,#fff)"/>
+      <path d="M60 94 C53 85 44 76 44 66 A16 16 0 0 1 76 66 C76 76 67 85 60 94 Z" fill="#F4A21D"/>
+      <circle cx="60" cy="65" r="6" fill="var(--ink,#fff)"/>
+      <circle cx="98" cy="42" r="5" fill="#F4A21D"/>
+    </symbol>
+    <!-- G: report form + pin -->
+    <symbol id="markG" viewBox="0 0 124 140">
+      <path d="M20 6 H76 L102 32 V110 A8 8 0 0 1 94 118 H20 A8 8 0 0 1 12 110 V14 A8 8 0 0 1 20 6 Z" fill="var(--pin,#1E8A3E)"/>
+      <path d="M76 6 V24 A8 8 0 0 0 84 32 H102 Z" fill="var(--ink,#fff)" opacity=".35"/>
+      <g stroke="var(--ink,#fff)" stroke-width="7" stroke-linecap="round">
+        <line x1="28" y1="48" x2="72" y2="48"/>
+        <line x1="28" y1="64" x2="80" y2="64"/>
+        <line x1="28" y1="80" x2="58" y2="80"/>
+      </g>
+      <path d="M94 136 C86 125 74 114 74 101 A20 20 0 0 1 114 101 C114 114 102 125 94 136 Z" fill="#F4A21D" stroke="var(--bgc,#fff)" stroke-width="5"/>
+      <circle cx="94" cy="101" r="7" fill="var(--ink,#fff)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="grid" id="grid"></div>
+
+<script>
+  const opts = [
+    { id:'E', vb:'0 0 120 124', title:'هـ — فقاعة كلام + علامة تعجّب',
+      why:'أوضح تعبير عن البلاغ: «عندي مشكلة وعاوز أقولها». علامة التعجب معناها التنبيه، ونقطتها ذهبية بلون المحافظة. بسيط جداً وواضح حتى في أصغر مقاس.' },
+    { id:'D', vb:'0 0 124 120', title:'د — مكبّر صوت',
+      why:'«صوتك وصل». الرمز المتعارف عليه للبلاغ والإعلان عن مشكلة، والموجات الذهبية معناها إن الصوت بيوصل. مكبّر الصوت متوجه ناحية اتجاه القراءة العربي.' },
+    { id:'F', vb:'0 0 120 116', title:'و — كاميرا + دبوس موقع',
+      why:'بيشرح المنصة نفسها: صوّر المشكلة، والموقع بيتحدد لوحده. العدسة جواها دبوس موقع ذهبي. أكتر فكرة بتوصف طريقة الاستخدام.' },
+    { id:'G', vb:'0 0 124 140', title:'ز — ورقة بلاغ + دبوس موقع',
+      why:'البلاغ كمستند رسمي مرتبط بمكان. بيدّي إحساس حكومي وموثّق، ومناسب للتقارير والتحقيقات. في المقاسات الصغيرة سطور الورقة بتبقى أقل وضوحاً.' },
+  ];
+  const mark = (o, pin, ink, bgc) => `<svg viewBox="${o.vb}" style="--pin:${pin};--ink:${ink};--bgc:${bgc}"><use href="#mark${o.id}"/></svg>`;
+  const word = `<div class="word"><b>بلّغ</b><span>منصة بلاغات محافظة الفيوم</span><i>BALLEGH</i></div>`;
+  document.getElementById('grid').innerHTML = opts.map(o => `
+    <section class="card">
+      <h2>${o.title}</h2>
+      <div class="why">${o.why}</div>
+      <div class="stage light"><div class="lockup">${mark(o,'#1E8A3E','#fff','#fff')}${word}</div></div>
+      <div class="stage dark"><div class="lockup">${mark(o,'#3FA765','#0E1511','#0E1511')}${word}</div></div>
+      <div class="stage light icons">
+        <div class="app">${mark(o,'#fff','#187535','#187535')}</div>
+        <div class="fav">${mark(o,'#1E8A3E','#fff','#fff')}</div>
+      </div>
+    </section>`).join('');
+</script>
+</body>
+</html>

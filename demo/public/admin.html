@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — الإعدادات وإدارة المحتوى</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  body { min-height:100vh; }
+  .shell { display:grid; grid-template-columns:240px 1fr; min-height:calc(100vh - 60px); }
+  .side { background:var(--surface); border-left:1px solid var(--border); padding:14px 10px; position:sticky; top:0; height:calc(100vh - 60px); overflow-y:auto; }
+  .side a { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:10px; color:var(--text); text-decoration:none; font-size:14px; }
+  .side a:hover { background:var(--surface-2); }
+  .side a.on { background:var(--primary-soft); color:var(--primary); font-weight:600; }
+  .side h6 { margin:14px 12px 4px; font-size:11px; color:var(--muted); font-weight:600; letter-spacing:.3px; }
+  .content { padding:22px 26px 60px; max-width:1100px; width:100%; }
+  .content h1 { margin:0 0 4px; font-size:22px; }
+  .content .desc { color:var(--muted); margin:0 0 18px; font-size:14px; }
+  .sec { display:grid; gap:16px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:900px) { .shell { grid-template-columns:1fr; } .side { position:static; height:auto; display:flex; flex-wrap:wrap; } .side h6 { display:none; } .grid2, .grid3 { grid-template-columns:1fr; } }
+  .savebar { position:sticky; bottom:0; background:rgb(247 249 247/.94); backdrop-filter:blur(6px); border-top:1px solid var(--border); padding:12px 0; display:flex; gap:10px; align-items:center; margin-top:8px; }
+  .savebar .dirty { color:var(--gold-700); font-size:13px; font-weight:500; }
+  table.t { width:100%; border-collapse:collapse; font-size:14px; }
+  table.t th { text-align:right; font-size:12px; color:var(--muted); font-weight:600; padding:8px 6px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  table.t td { padding:6px; border-bottom:1px solid var(--surface-2); vertical-align:middle; }
+  table.t .input { padding:6px 8px; font-size:13px; }
+  table.t tr.off td { opacity:.5; }
+  .switch { position:relative; width:42px; height:24px; flex:none; display:inline-block; }
+  .switch input { opacity:0; width:0; height:0; }
+  .switch span { position:absolute; inset:0; background:#CBD5D0; border-radius:999px; cursor:pointer; transition:.2s; }
+  .switch span::before { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:3px; right:3px; transition:.2s; box-shadow:var(--sh-sm); }
+  .switch input:checked + span { background:var(--primary); }
+  .switch input:checked + span::before { transform:translateX(-18px); }
+  .opt { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--surface-2); }
+  .opt:last-child { border-bottom:0; }
+  .opt .tx { flex:1; } .opt .tx b { display:block; font-weight:500; } .opt .tx span { font-size:12px; color:var(--muted); }
+  .chain { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; }
+  .chain span { background:var(--surface-2); padding:6px 12px; border-radius:999px; }
+  .chain i { color:var(--muted); font-style:normal; }
+  .wsum { font-weight:700; }
+  .list-edit { display:grid; gap:8px; }
+  .list-edit .item { display:grid; gap:8px; grid-template-columns:1fr 2fr auto; align-items:start; background:var(--surface-2); padding:10px; border-radius:12px; }
+  .list-edit .item.two { grid-template-columns:1fr 1fr auto; }
+  .ro-note { display:none; }
+  body.ro .ro-note { display:block; }
+  .pill-role { font-size:12px; padding:2px 8px; border-radius:999px; background:var(--surface-2); white-space:nowrap; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span id="brand"></span>
+  <span class="spacer"></span>
+  <select class="input" id="role" style="width:auto"><option value="ops-sup">مشرف الغرفة</option><option value="ops-rev">مراجع الغرفة (قراءة فقط)</option></select>
+</header>
+<div class="shell">
+  <aside class="side" id="side"></aside>
+  <main class="content" id="content"></main>
+</div>
+<script type="module">
+import { api, meta, useUser, toast, esc, fmt, dt, modal, brandHtml, mountNav, ROLE_AR } from '/js/common.js';
+
+document.getElementById('brand').innerHTML = brandHtml(); mountNav('admin');
+let userId = localStorage.getItem('ballegh:ops') || 'ops-sup';
+const roleSel = document.getElementById('role'); roleSel.value = userId; useUser(userId);
+roleSel.onchange = () => { userId = roleSel.value; localStorage.setItem('ballegh:ops', userId); useUser(userId); paintRo(); };
+const paintRo = () => document.body.classList.toggle('ro', userId !== 'ops-sup');
+
+let M, geo, content;
+const PR = { CRITICAL: 'حرج', URGENT: 'عاجل', NORMAL: 'عادي', LOW: 'منخفض' };
+const prOpts = sel => Object.entries(PR).map(([k, t]) => `<option value="${k}" ${k === sel ? 'selected' : ''}>${t}</option>`).join('');
+const sw = (id, on, attrs = '') => `<label class="switch"><input type="checkbox" id="${id}" ${on ? 'checked' : ''} ${attrs}><span></span></label>`;
+const roNote = '<div class="ro-note hint">أنت بدور «مراجع» — تقدر تشوف الإعدادات بس. التعديل لمشرف الغرفة فقط.</div>';
+
+const SECTIONS = [
+  ['النظام', [['general', 'الإعدادات العامة'], ['categories', 'تصنيفات البلاغات'], ['sla', 'الأولويات ومدد الحل'], ['escalation', 'التصعيد'], ['kpi', 'مؤشرات الأداء']]],
+  ['الهيكل والمستخدمون', [['units', 'الوحدات المحلية'], ['users', 'المستخدمون والصلاحيات']]],
+  ['المحتوى', [['content', 'محتوى الموقع العام'], ['schedules', 'التقارير المجدولة']]],
+  ['الرقابة', [['log', 'سجل التغييرات']]],
+];
+document.getElementById('side').innerHTML = SECTIONS.map(([g, items]) => `<h6>${g}</h6>${items.map(([k, t]) => `<a href="#${k}" data-k="${k}">${t}</a>`).join('')}`).join('');
+
+function shell(title, desc, body, { save = true } = {}) {
+  document.getElementById('content').innerHTML = `<h1>${title}</h1><p class="desc">${desc}</p>${roNote}<div class="sec">${body}</div>${save ? `<div class="savebar"><button class="btn" id="save">حفظ التغييرات</button><button class="btn ghost" id="reset">تراجع</button><span class="dirty hidden" id="dirty">● في تغييرات مش محفوظة</span></div>` : ''}`;
+  const c = document.getElementById('content');
+  c.addEventListener('input', () => document.getElementById('dirty')?.classList.remove('hidden'));
+  c.addEventListener('change', () => document.getElementById('dirty')?.classList.remove('hidden'));
+  document.getElementById('reset')?.addEventListener('click', route);
+  return c;
+}
+async function saveSettings(body) { await api('/api/settings', { method: 'PUT', body }); M = await meta(true); toast('تم الحفظ', 'ok'); document.getElementById('dirty')?.classList.add('hidden'); }
+const val = id => document.getElementById(id).value;
+const num = id => Number(document.getElementById(id).value);
+const chk = id => document.getElementById(id).checked;
+
+// ---------- sections ----------
+const views = {
+  general() {
+    const s = M.settings;
+    shell('الإعدادات العامة', 'قواعد تقديم البلاغات والإغلاق وخصوصية المبلّغ.', `
+      <div class="card"><h3>تقديم البلاغات</h3>
+        <div class="grid3">
+          <label class="field"><span>الحد اليومي لكل مواطن</span><input class="input num" type="number" min="1" id="dailyLimit" value="${s.dailyLimit}"></label>
+          <label class="field"><span>نطاق صورة الحل (متر)</span><input class="input num" type="number" min="10" id="resolutionRadiusM" value="${s.resolutionRadiusM}"></label>
+          <label class="field"><span>إغلاق تلقائي بعد الحل (أيام)</span><input class="input num" type="number" min="1" id="autoCloseDays" value="${s.autoCloseDays}"></label>
+        </div></div>
+      <div class="card"><h3>المراجعة والخصوصية</h3>
+        <div class="opt"><div class="tx"><b>نسبة عينة مراجعة البلاغات المرفوضة</b><span>غرفة العمليات بتتواصل مع المواطن للتأكد من صحة الرفض</span></div><input class="input num" type="number" id="rejectionSamplePct" value="${s.rejectionSamplePct}" style="width:90px"> %</div>
+        <div class="opt"><div class="tx"><b>إخفاء بيانات المبلّغ افتراضياً للوحدات الجديدة</b><span>يتعدل لكل وحدة من «الوحدات المحلية»</span></div>${sw('hideReporterDefault', s.hideReporterDefault)}</div>
+        <div class="opt"><div class="tx"><b>صفحة الشفافية العامة</b><span>إظهار إحصائيات مجمّعة (عدد البلاغات المحلولة، الالتزام، الرضا) للمواطنين على الصفحة الرئيسية</span></div>${sw('transparencyPage', s.transparencyPage)}</div>
+      </div>`);
+    document.getElementById('save').onclick = () => saveSettings({ dailyLimit: num('dailyLimit'), resolutionRadiusM: num('resolutionRadiusM'), autoCloseDays: num('autoCloseDays'), rejectionSamplePct: num('rejectionSamplePct'), hideReporterDefault: chk('hideReporterDefault'), transparencyPage: chk('transparencyPage') }).catch(e => toast(e.message, 'err'));
+  },
+
+  categories() {
+    let cats = structuredClone(M.categories);
+    const c = shell('تصنيفات البلاغات', 'التصنيفات اللي بتظهر للمواطن، وأولويتها الأساسية، والأسئلة الموجّهة لكل تصنيف. التصنيف اللي عليه بلاغات ميتمسحش — بيتعطّل بس.', `
+      <div class="card" style="padding:0;overflow-x:auto"><table class="t" id="ct"></table></div>
+      <div><button class="btn secondary sm" id="add">+ إضافة تصنيف</button></div>`);
+    const draw = () => {
+      document.getElementById('ct').innerHTML = `<thead><tr><th></th><th>الاسم</th><th>بالإنجليزي</th><th>الأولوية الأساسية</th><th>طوارئ</th><th>الأسئلة الموجّهة (سؤال في كل سطر)</th><th>مفعّل</th><th></th></tr></thead><tbody>${cats.map((x, i) => `<tr class="${x.active ? '' : 'off'}" data-i="${i}">
+        <td style="white-space:nowrap"><button class="icon-btn" data-up="${i}" style="width:26px;height:26px" ${i ? '' : 'disabled'}>▲</button><button class="icon-btn" data-dn="${i}" style="width:26px;height:26px" ${i < cats.length - 1 ? '' : 'disabled'}>▼</button></td>
+        <td><input class="input" data-f="ar" value="${esc(x.ar)}" style="min-width:150px"></td>
+        <td><input class="input" data-f="en" value="${esc(x.en || '')}" dir="ltr" style="min-width:110px"></td>
+        <td><select class="input" data-f="priority">${prOpts(x.priority)}</select></td>
+        <td><input type="checkbox" data-f="emergency" ${x.emergency ? 'checked' : ''}></td>
+        <td><textarea class="input" data-f="questions" style="min-height:40px;min-width:220px">${esc((x.questions || []).join('\n'))}</textarea></td>
+        <td><label class="switch"><input type="checkbox" data-f="active" ${x.active ? 'checked' : ''}><span></span></label></td>
+        <td><button class="icon-btn" data-del="${i}" title="حذف">✕</button></td></tr>`).join('')}</tbody>`;
+    };
+    const read = () => document.querySelectorAll('#ct tbody tr').forEach(tr => {
+      const x = cats[tr.dataset.i];
+      tr.querySelectorAll('[data-f]').forEach(el => { const f = el.dataset.f; x[f] = el.type === 'checkbox' ? el.checked : f === 'questions' ? el.value.split('\n').map(s => s.trim()).filter(Boolean) : el.value; });
+    });
+    draw();
+    c.addEventListener('click', e => {
+      const t = e.target.closest('button'); if (!t) return;
+      if (t.dataset.up) { read(); const i = +t.dataset.up; [cats[i - 1], cats[i]] = [cats[i], cats[i - 1]]; draw(); }
+      if (t.dataset.dn) { read(); const i = +t.dataset.dn; [cats[i + 1], cats[i]] = [cats[i], cats[i + 1]]; draw(); }
+      if (t.dataset.del) { read(); cats.splice(+t.dataset.del, 1); draw(); document.getElementById('dirty').classList.remove('hidden'); }
+      if (t.id === 'add') { read(); cats.push({ code: '', ar: 'تصنيف جديد', en: '', priority: 'NORMAL', emergency: false, questions: [], active: true }); draw(); }
+    });
+    document.getElementById('save').onclick = async () => {
+      read();
+      try { await api('/api/categories', { method: 'PUT', body: cats }); M = await meta(true); cats = structuredClone(M.categories); draw(); toast('تم حفظ التصنيفات', 'ok'); document.getElementById('dirty').classList.add('hidden'); } catch (e) { toast(e.message, 'err'); }
+    };
+  },
+
+  sla() {
+    const s = M.settings;
+    let rules = structuredClone(s.seasonalRules || []);
+    const c = shell('الأولويات ومدد الحل', 'مدة الاستلام ومدة الحل لكل أولوية، وقواعد رفع الأولوية بالتكرار أو حسب الموسم. التغيير بيطبّق على البلاغات الجديدة.', `
+      <div class="card"><h3>مدد الاستلام والحل (SLA)</h3>
+        <table class="t"><thead><tr><th>الأولوية</th><th>مدة الاستلام (ساعة)</th><th>مدة الحل (ساعة)</th><th>مدة الحل بالأيام</th></tr></thead><tbody>
+        ${Object.entries(s.sla).map(([p, v]) => `<tr><td><b>${PR[p]}</b></td><td><input class="input num" type="number" step="0.5" data-sla="${p}.ack" value="${v.ack / 60}" style="width:110px"></td><td><input class="input num" type="number" step="1" data-sla="${p}.resolve" value="${v.resolve / 60}" style="width:110px"></td><td class="muted num" data-days="${p}">${(v.resolve / 1440).toFixed(1)}</td></tr>`).join('')}
+        </tbody></table></div>
+      <div class="card"><h3>كشف التكرار ورفع الأولوية</h3><div class="grid2">
+        <label class="field"><span>نطاق التكرار (متر)</span><input class="input num" type="number" id="dupRadiusM" value="${s.dupRadiusM}"></label>
+        <label class="field"><span>خلال (يوم)</span><input class="input num" type="number" id="dupDays" value="${s.dupDays}"></label>
+        <label class="field"><span>ترتفع الأولوية درجة عند (بلاغات)</span><input class="input num" type="number" id="dupBump1" value="${s.dupBump1}"></label>
+        <label class="field"><span>ترتفع درجتين عند (بلاغات)</span><input class="input num" type="number" id="dupBump2" value="${s.dupBump2}"></label></div></div>
+      <div class="card"><h3>القواعد الموسمية</h3><p class="small muted" style="margin-top:-6px">مثلاً: من نوفمبر لفبراير «مصارف وترع» تبقى عاجل بسبب الأمطار.</p>
+        <div class="list-edit" id="rules"></div><div style="margin-top:8px"><button class="btn secondary sm" id="addRule">+ إضافة قاعدة</button></div></div>`);
+    const drawRules = () => document.getElementById('rules').innerHTML = rules.map((r, i) => `<div class="item" style="grid-template-columns:110px 110px 1fr 110px 1fr auto" data-i="${i}">
+      <label class="field"><span>من (شهر-يوم)</span><input class="input num" data-f="from" value="${esc(r.from)}" placeholder="11-01" dir="ltr"></label>
+      <label class="field"><span>إلى</span><input class="input num" data-f="to" value="${esc(r.to)}" placeholder="02-28" dir="ltr"></label>
+      <label class="field"><span>التصنيف</span><select class="input" data-f="category">${M.categories.map(x => `<option value="${x.code}" ${x.code === r.category ? 'selected' : ''}>${esc(x.ar)}</option>`).join('')}</select></label>
+      <label class="field"><span>الأولوية</span><select class="input" data-f="priority">${prOpts(r.priority)}</select></label>
+      <label class="field"><span>ملاحظة</span><input class="input" data-f="note" value="${esc(r.note || '')}"></label>
+      <button class="icon-btn" data-del="${i}" style="margin-top:20px">✕</button></div>`).join('') || '<div class="muted small">مفيش قواعد</div>';
+    const readRules = () => document.querySelectorAll('#rules .item').forEach(el => { const r = rules[el.dataset.i]; el.querySelectorAll('[data-f]').forEach(i => r[i.dataset.f] = i.value); });
+    drawRules();
+    c.addEventListener('input', e => { const i = e.target.closest('[data-sla$=".resolve"]'); if (i) document.querySelector(`[data-days="${i.dataset.sla.split('.')[0]}"]`).textContent = (i.value / 24).toFixed(1); });
+    c.addEventListener('click', e => {
+      const t = e.target.closest('button'); if (!t) return;
+      if (t.id === 'addRule') { readRules(); rules.push({ from: '01-01', to: '12-31', category: M.categories[0].code, priority: 'URGENT', note: '' }); drawRules(); }
+      if (t.dataset.del) { readRules(); rules.splice(+t.dataset.del, 1); drawRules(); }
+    });
+    document.getElementById('save').onclick = () => {
+      readRules();
+      if (rules.some(r => !/^\d\d-\d\d$/.test(r.from) || !/^\d\d-\d\d$/.test(r.to))) return toast('صيغة التاريخ لازم تكون شهر-يوم زي 11-01', 'err');
+      const sla = structuredClone(s.sla);
+      document.querySelectorAll('[data-sla]').forEach(i => { const [p, k] = i.dataset.sla.split('.'); sla[p][k] = Math.round(Number(i.value) * 60); });
+      if (Object.values(sla).some(v => v.ack >= v.resolve)) return toast('مدة الاستلام لازم تكون أقل من مدة الحل', 'err');
+      saveSettings({ sla, dupRadiusM: num('dupRadiusM'), dupDays: num('dupDays'), dupBump1: num('dupBump1'), dupBump2: num('dupBump2'), seasonalRules: rules }).catch(e => toast(e.message, 'err'));
+    };
+  },
+
+  escalation() {
+    const e = M.settings.escalation;
+    shell('التصعيد', 'البلاغ المتأخر بيتصعّد تلقائياً لمستوى أعلى. النسبة = قد إيه البلاغ عدّى موعد الحل، مقارنةً بمدة الحل كلها.', `
+      <div class="card"><h3>سلسلة التصعيد</h3><div class="chain"><span>تجاوز مدة الاستلام ← رئيس الوحدة</span><i>←</i><span>تجاوز مدة الحل ← رئيس المركز</span><i>←</i><span id="c3">+${e.toOpsPct}% ← غرفة العمليات</span><i>←</i><span id="c4">+${e.toGovernorPct}% ← المحافظ</span></div></div>
+      <div class="card"><div class="grid2">
+        <label class="field"><span>تصعيد لغرفة العمليات بعد تجاوز موعد الحل بنسبة (%)</span><input class="input num" type="number" id="toOpsPct" value="${e.toOpsPct}"></label>
+        <label class="field"><span>تصعيد للمحافظ بعد تجاوز موعد الحل بنسبة (%)</span><input class="input num" type="number" id="toGovernorPct" value="${e.toGovernorPct}"></label></div>
+        <div class="opt"><div class="tx"><b>البلاغات «الحرجة» المتأخرة تروح للمحافظ مباشرة</b><span>من غير انتظار النسبة</span></div>${sw('criticalToGovernor', e.criticalToGovernor)}</div>
+        <div class="hint">مثال: بلاغ «عادي» مدة حله 7 أيام. لو عدّى موعده بـ 3.5 يوم (50%) بيتصعّد لغرفة العمليات، ولو عدّاه بـ 7 أيام (100%) بيتصعّد للمحافظ.</div></div>`);
+    document.getElementById('content').addEventListener('input', () => { document.getElementById('c3').textContent = `+${val('toOpsPct')}% ← غرفة العمليات`; document.getElementById('c4').textContent = `+${val('toGovernorPct')}% ← المحافظ`; });
+    document.getElementById('save').onclick = () => {
+      if (num('toOpsPct') >= num('toGovernorPct')) return toast('نسبة المحافظ لازم تكون أكبر من نسبة الغرفة', 'err');
+      saveSettings({ escalation: { toOpsPct: num('toOpsPct'), toGovernorPct: num('toGovernorPct'), criticalToGovernor: chk('criticalToGovernor') } }).catch(e => toast(e.message, 'err'));
+    };
+  },
+
+  kpi() {
+    const s = M.settings;
+    const W = { k3: 'الالتزام بمدد الحل', k4: 'نسبة الحل', k6: 'رضا المواطن', k1: 'سرعة الاستلام', k5: 'إعادة الفتح (معكوس)', k8: 'مصداقية الوحدة', k9: 'المشاكل المتكررة (معكوس)' };
+    shell('مؤشرات الأداء', 'أوزان المؤشرات في «درجة الأداء» من 100، وحدود التلوين والإنذار على الخريطة.', `
+      <div class="card"><h3>الأوزان <span class="small muted">— المجموع: <span class="wsum num" id="wsum"></span> / 100</span></h3>
+        ${Object.entries(W).map(([k, t]) => `<div class="opt"><div class="tx"><b>${t}</b></div><input type="range" min="0" max="50" data-w="${k}" value="${s.weights[k]}" style="width:220px"><input class="input num" type="number" data-wn="${k}" value="${s.weights[k]}" style="width:80px"></div>`).join('')}</div>
+      <div class="card"><h3>حدود التقييم</h3><div class="grid2">
+        <label class="field"><span><b style="color:#16A34A">● جيد</b> من درجة</span><input class="input num" type="number" id="good" value="${s.thresholds.good}"></label>
+        <label class="field"><span><b style="color:#CA8A04">● متوسط</b> من درجة (وأقل منها <b style="color:#DC2626">ضعيف</b> + إنذار للمحافظ)</span><input class="input num" type="number" id="fair" value="${s.thresholds.fair}"></label></div></div>`);
+    const sum = () => { const t = [...document.querySelectorAll('[data-wn]')].reduce((a, i) => a + Number(i.value), 0); const el = document.getElementById('wsum'); el.textContent = t; el.style.color = t === 100 ? '#15803D' : '#B91C1C'; return t; };
+    sum();
+    document.getElementById('content').addEventListener('input', e => {
+      if (e.target.dataset.w) document.querySelector(`[data-wn="${e.target.dataset.w}"]`).value = e.target.value;
+      if (e.target.dataset.wn) document.querySelector(`[data-w="${e.target.dataset.wn}"]`).value = e.target.value;
+      sum();
+    });
+    document.getElementById('save').onclick = () => {
+      if (sum() !== 100) return toast('مجموع الأوزان لازم يكون 100', 'err');
+      if (num('fair') >= num('good')) return toast('حد «متوسط» لازم يكون أقل من حد «جيد»', 'err');
+      const weights = {}; document.querySelectorAll('[data-wn]').forEach(i => weights[i.dataset.wn] = Number(i.value));
+      saveSettings({ weights, thresholds: { good: num('good'), fair: num('fair') } }).catch(e => toast(e.message, 'err'));
+    };
+  },
+
+  async units() {
+    geo = await api('/api/geo');
+    const users = await api('/api/users?all=1');
+    const heads = users.filter(u => u.role === 'UNIT_HEAD' && u.active);
+    const c = shell('الوحدات المحلية', 'اسم الوحدة كما يظهر في النظام، ورئيسها الحالي، وهل بيانات المبلّغ مخفية عنها. نطاقات الوحدات نفسها بتتحدث من ملف الحدود الرسمي.', `
+      <div class="row"><input class="input" id="uq" placeholder="بحث باسم الوحدة أو القرية…" style="max-width:320px"><select class="input" id="uc" style="max-width:200px"><option value="">كل المراكز</option>${geo.centers.features.map(f => `<option value="${f.properties.id}">${esc(f.properties.name)}</option>`).join('')}</select></div>
+      <div class="card" style="padding:0;overflow-x:auto"><table class="t" id="ut"></table></div>`, { save: false });
+    const draw = () => {
+      const q = val('uq').trim(), cc = val('uc');
+      document.getElementById('ut').innerHTML = `<thead><tr><th>الوحدة</th><th>المركز</th><th>القرى التابعة</th><th>رئيس الوحدة</th><th>الموظفين</th><th>إخفاء المبلّغ</th><th></th></tr></thead><tbody>${geo.units.features.map(f => f.properties).filter(p => (!cc || p.centerId === cc) && (!q || p.name.includes(q) || p.villages.some(v => v.includes(q)))).map(p => {
+        const h = heads.find(x => x.unitId === p.id);
+        return `<tr data-id="${p.id}"><td><input class="input" data-name value="${esc(p.name)}" style="min-width:220px"></td><td class="small muted">${esc(p.centerName)}</td><td class="small">${p.villages.map(esc).join('، ')}</td>
+          <td class="small">${h ? esc(h.name) : '<span style="color:#B91C1C">بدون رئيس</span>'}</td><td class="num">${users.filter(u => u.role === 'UNIT_STAFF' && u.unitId === p.id && u.active).length}</td>
+          <td>${h ? `<label class="switch"><input type="checkbox" data-hide="${h.id}" ${h.hideReporter !== false ? 'checked' : ''}><span></span></label>` : ''}</td>
+          <td><button class="btn sm ghost" data-save>حفظ الاسم</button></td></tr>`;
+      }).join('')}</tbody>`;
+    };
+    draw();
+    document.getElementById('uq').oninput = draw; document.getElementById('uc').onchange = draw;
+    c.addEventListener('change', async e => {
+      const h = e.target.dataset.hide; if (!h) return;
+      try { await api('/api/users/' + h, { method: 'PATCH', body: { hideReporter: e.target.checked } }); toast(e.target.checked ? 'بيانات المبلّغ مخفية عن الوحدة' : 'بيانات المبلّغ ظاهرة للوحدة', 'ok'); } catch (err) { toast(err.message, 'err'); e.target.checked = !e.target.checked; }
+    });
+    c.addEventListener('click', async e => {
+      if (!e.target.closest('[data-save]')) return;
+      const tr = e.target.closest('tr');
+      try { const out = await api('/api/units/' + tr.dataset.id, { method: 'PATCH', body: { name: tr.querySelector('[data-name]').value } }); toast(`تم: ${out.name}`, 'ok'); geo = await api('/api/geo'); } catch (err) { toast(err.message, 'err'); }
+    });
+  },
+
+  async users() {
+    geo = geo || await api('/api/geo');
+    let users = await api('/api/users?all=1');
+    const unitN = id => geo.units.features.find(f => f.properties.id === id)?.properties.name || '';
+    const centerN = id => geo.centers.features.find(f => f.properties.id === id)?.properties.name || '';
+    const c = shell('المستخدمون والصلاحيات', 'حسابات الموظفين بكل الأدوار. الحساب مربوط بالشخص، فلو رئيس وحدة اتنقل: عطّل حسابه وأضف الرئيس الجديد، وبلاغات الوحدة بتنتقل له تلقائياً.', `
+      <div class="row wrap"><select class="input" id="fr" style="max-width:220px"><option value="">كل الأدوار</option>${['UNIT_HEAD', 'UNIT_STAFF', 'CENTER_HEAD', 'OPS_SUPERVISOR', 'OPS_REVIEWER', 'GOVERNOR'].map(r => `<option value="${r}">${ROLE_AR[r]}</option>`).join('')}</select>
+        <input class="input" id="fq" placeholder="بحث بالاسم أو الوحدة…" style="max-width:260px"><label class="chk small row"><input type="checkbox" id="fo"> إظهار المعطّلين</label><span class="spacer"></span><button class="btn" id="addU">+ مستخدم جديد</button></div>
+      <div class="card" style="padding:0;overflow-x:auto"><table class="t" id="tt"></table></div>`, { save: false });
+    const draw = () => {
+      const r = val('fr'), q = val('fq').trim(), showOff = chk('fo');
+      const list = users.filter(u => u.role !== 'CITIZEN' && (!r || u.role === r) && (showOff || u.active) && (!q || u.name.includes(q) || unitN(u.unitId).includes(q)));
+      document.getElementById('tt').innerHTML = `<thead><tr><th>الاسم</th><th>الدور</th><th>النطاق</th><th>الموبايل</th><th>مفعّل</th><th></th></tr></thead><tbody>${list.slice(0, 200).map(u => `<tr class="${u.active ? '' : 'off'}" data-id="${u.id}">
+        <td><b>${esc(u.name)}</b></td><td><span class="pill-role">${ROLE_AR[u.role]}</span></td>
+        <td class="small">${u.unitId ? esc(unitN(u.unitId)) : u.centerId ? esc(centerN(u.centerId)) : 'المحافظة'}</td>
+        <td class="num small" dir="ltr" style="text-align:right">${esc(u.phone || '—')}</td>
+        <td><label class="switch"><input type="checkbox" data-active ${u.active ? 'checked' : ''}><span></span></label></td>
+        <td><button class="btn sm ghost" data-edit>تعديل</button></td></tr>`).join('')}</tbody>`;
+    };
+    draw();
+    ['fr', 'fo'].forEach(id => document.getElementById(id).onchange = draw);
+    document.getElementById('fq').oninput = draw;
+    c.addEventListener('change', async e => {
+      if (!e.target.matches('[data-active]')) return;
+      const id = e.target.closest('tr').dataset.id;
+      try { await api('/api/users/' + id, { method: 'PATCH', body: { active: e.target.checked } }); users = await api('/api/users?all=1'); toast(e.target.checked ? 'تم تفعيل الحساب' : 'تم تعطيل الحساب', 'ok'); draw(); } catch (err) { toast(err.message, 'err'); e.target.checked = !e.target.checked; }
+    });
+    const form = (u = {}) => `
+      <label class="field"><span>الاسم</span><input class="input" id="nName" value="${esc(u.name || '')}"></label>
+      ${u.id ? '' : `<label class="field"><span>الدور</span><select class="input" id="nRole">${['UNIT_STAFF', 'UNIT_HEAD', 'CENTER_HEAD', 'OPS_REVIEWER', 'OPS_SUPERVISOR', 'GOVERNOR'].map(r => `<option value="${r}">${ROLE_AR[r]}</option>`).join('')}</select></label>
+      <label class="field" id="nUnitF"><span>الوحدة المحلية</span><select class="input" id="nUnit">${geo.units.features.map(f => `<option value="${f.properties.id}">${esc(f.properties.name)}</option>`).join('')}</select></label>
+      <label class="field hidden" id="nCenterF"><span>المركز</span><select class="input" id="nCenter">${geo.centers.features.map(f => `<option value="${f.properties.id}">${esc(f.properties.name)}</option>`).join('')}</select></label>`}
+      <div class="grid2"><label class="field"><span>الموبايل</span><input class="input num" id="nPhone" dir="ltr" value="${esc(u.phone || '')}"></label><label class="field"><span>البريد</span><input class="input" id="nEmail" dir="ltr" value="${esc(u.email || '')}"></label></div>
+      <div class="tiny muted">في النظام الفعلي: الموظف بيستلم رسالة تفعيل، وبيدخل بالمصادقة الثنائية.</div>`;
+    const syncRole = m => { const r = m.querySelector('#nRole')?.value; if (!r) return; m.querySelector('#nUnitF').classList.toggle('hidden', !['UNIT_STAFF', 'UNIT_HEAD'].includes(r)); m.querySelector('#nCenterF').classList.toggle('hidden', r !== 'CENTER_HEAD'); };
+    document.getElementById('addU').onclick = () => {
+      const p = modal({ title: 'مستخدم جديد', body: form(), actions: [{ label: 'إضافة', onClick: async m => {
+        await api('/api/users', { method: 'POST', body: { name: m.querySelector('#nName').value, role: m.querySelector('#nRole').value, unitId: m.querySelector('#nUnit').value, centerId: m.querySelector('#nCenter').value, phone: m.querySelector('#nPhone').value, email: m.querySelector('#nEmail').value } });
+        users = await api('/api/users?all=1'); draw(); toast('تمت إضافة المستخدم', 'ok');
+      } }, { label: 'إلغاء', cls: 'ghost' }] });
+      const m = document.querySelector('.modal'); m.querySelector('#nRole').onchange = () => syncRole(m); syncRole(m);
+      return p;
+    };
+    c.addEventListener('click', e => {
+      if (!e.target.closest('[data-edit]')) return;
+      const u = users.find(x => x.id === e.target.closest('tr').dataset.id);
+      modal({ title: `تعديل — ${u.name}`, body: form(u), actions: [{ label: 'حفظ', onClick: async m => {
+        await api('/api/users/' + u.id, { method: 'PATCH', body: { name: m.querySelector('#nName').value, phone: m.querySelector('#nPhone').value, email: m.querySelector('#nEmail').value } });
+        users = await api('/api/users?all=1'); draw(); toast('تم الحفظ', 'ok');
+      } }, { label: 'إلغاء', cls: 'ghost' }] });
+    });
+  },
+
+  async content() {
+    content = await api('/api/content');
+    let steps = structuredClone(content.steps), faq = structuredClone(content.faq), emergency = structuredClone(content.emergency);
+    const c = shell('محتوى الموقع العام', 'النصوص اللي بتظهر للمواطنين على الصفحة الرئيسية وفي تطبيق المواطن.', `
+      <div class="row"><a class="btn ghost sm" href="/" target="_blank">معاينة الصفحة الرئيسية ↗</a></div>
+      <div class="card"><h3>الواجهة الرئيسية</h3><div class="stack">
+        <label class="field"><span>العنوان الرئيسي</span><input class="input" id="heroTitle" value="${esc(content.heroTitle)}"></label>
+        <label class="field"><span>النص التعريفي</span><textarea class="input" id="heroSubtitle">${esc(content.heroSubtitle)}</textarea></label>
+        <label class="field"><span>شريط إعلان (اختياري — يظهر أعلى الصفحة)</span><input class="input" id="announcement" value="${esc(content.announcement || '')}" placeholder="مثال: صيانة مجدولة يوم الجمعة من 2 إلى 4 فجراً"></label></div></div>
+      <div class="card"><h3>خطوات الاستخدام</h3><div class="list-edit" id="steps"></div></div>
+      <div class="card"><h3>الأسئلة الشائعة</h3><div class="list-edit" id="faq"></div><div style="margin-top:8px"><button class="btn secondary sm" id="addFaq">+ سؤال</button></div></div>
+      <div class="card"><h3>أرقام الطوارئ</h3><div class="list-edit" id="emg"></div><div style="margin-top:8px"><button class="btn secondary sm" id="addEmg">+ رقم</button></div></div>
+      <div class="card"><h3>بيانات التواصل</h3><div class="grid3">
+        <label class="field"><span>الخط الساخن</span><input class="input num" id="hotline" dir="ltr" value="${esc(content.contact?.hotline || '')}"></label>
+        <label class="field"><span>البريد</span><input class="input" id="email" dir="ltr" value="${esc(content.contact?.email || '')}"></label>
+        <label class="field"><span>العنوان</span><input class="input" id="address" value="${esc(content.contact?.address || '')}"></label></div></div>`);
+    const draw = () => {
+      document.getElementById('steps').innerHTML = steps.map((s, i) => `<div class="item" data-i="${i}" data-l="steps"><input class="input" data-f="title" value="${esc(s.title)}"><input class="input" data-f="text" value="${esc(s.text)}"><span></span></div>`).join('');
+      document.getElementById('faq').innerHTML = faq.map((s, i) => `<div class="item" data-i="${i}" data-l="faq"><input class="input" data-f="q" value="${esc(s.q)}" placeholder="السؤال"><textarea class="input" data-f="a" style="min-height:42px" placeholder="الإجابة">${esc(s.a)}</textarea><button class="icon-btn" data-del="faq.${i}">✕</button></div>`).join('');
+      document.getElementById('emg').innerHTML = emergency.map((s, i) => `<div class="item two" data-i="${i}" data-l="emergency"><input class="input" data-f="name" value="${esc(s.name)}" placeholder="الجهة"><input class="input num" data-f="number" value="${esc(s.number)}" dir="ltr" placeholder="الرقم"><button class="icon-btn" data-del="emergency.${i}">✕</button></div>`).join('');
+    };
+    const read = () => document.querySelectorAll('.list-edit .item').forEach(el => { const L = { steps, faq, emergency }[el.dataset.l]; el.querySelectorAll('[data-f]').forEach(i => L[el.dataset.i][i.dataset.f] = i.value); });
+    draw();
+    c.addEventListener('click', e => {
+      const t = e.target.closest('button'); if (!t) return;
+      if (t.id === 'addFaq') { read(); faq.push({ q: '', a: '' }); draw(); }
+      if (t.id === 'addEmg') { read(); emergency.push({ name: '', number: '' }); draw(); }
+      if (t.dataset.del) { read(); const [l, i] = t.dataset.del.split('.'); ({ faq, emergency })[l].splice(+i, 1); draw(); document.getElementById('dirty').classList.remove('hidden'); }
+    });
+    document.getElementById('save').onclick = async () => {
+      read();
+      try {
+        await api('/api/content', { method: 'PUT', body: { heroTitle: val('heroTitle'), heroSubtitle: val('heroSubtitle'), announcement: val('announcement'), steps, faq: faq.filter(f => f.q.trim()), emergency: emergency.filter(x => x.number.trim()), contact: { hotline: val('hotline'), email: val('email'), address: val('address') } } });
+        toast('تم نشر المحتوى', 'ok'); document.getElementById('dirty').classList.add('hidden');
+      } catch (e) { toast(e.message, 'err'); }
+    };
+  },
+
+  schedules() {
+    let list = structuredClone(M.settings.reportSchedules || []);
+    const TYPES = { summary: 'ملخص المؤشرات', units: 'أداء الوحدات', full: 'تقرير شامل', overdue: 'البلاغات المتأخرة' };
+    const FREQ = { daily: 'يومي', weekly: 'أسبوعي', monthly: 'شهري' };
+    const c = shell('التقارير المجدولة', 'تقارير PDF بتتولّد وتتبعت تلقائياً. في النموذج التجريبي الجدولة بتتحفظ بس، والإرسال الفعلي في نظام الإنتاج.', `
+      <div class="card" style="padding:0;overflow-x:auto"><table class="t" id="st"></table></div><div><button class="btn secondary sm" id="addS">+ تقرير مجدول</button></div>`);
+    const draw = () => document.getElementById('st').innerHTML = `<thead><tr><th>الاسم</th><th>النوع</th><th>التكرار</th><th>الموعد</th><th>المستلمون</th><th>مفعّل</th><th></th></tr></thead><tbody>${list.map((s, i) => `<tr data-i="${i}">
+      <td><input class="input" data-f="name" value="${esc(s.name)}"></td>
+      <td><select class="input" data-f="type">${Object.entries(TYPES).map(([k, t]) => `<option value="${k}" ${k === s.type ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td><select class="input" data-f="freq">${Object.entries(FREQ).map(([k, t]) => `<option value="${k}" ${k === s.freq ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td><input class="input" data-f="time" value="${esc(s.time)}" style="width:120px"></td>
+      <td><input class="input" data-f="recipients" value="${esc(s.recipients)}" style="min-width:200px"></td>
+      <td><label class="switch"><input type="checkbox" data-f="enabled" ${s.enabled ? 'checked' : ''}><span></span></label></td>
+      <td class="row"><a class="btn sm ghost" href="/report.html?days=${s.freq === 'daily' ? 1 : s.freq === 'weekly' ? 7 : 30}" target="_blank">معاينة</a><button class="icon-btn" data-del="${i}">✕</button></td></tr>`).join('')}</tbody>`;
+    const read = () => document.querySelectorAll('#st tbody tr').forEach(tr => tr.querySelectorAll('[data-f]').forEach(el => list[tr.dataset.i][el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value));
+    draw();
+    c.addEventListener('click', e => {
+      const t = e.target.closest('button'); if (!t) return;
+      if (t.id === 'addS') { read(); list.push({ id: 's' + Date.now(), name: 'تقرير جديد', freq: 'weekly', time: 'الأحد 09:00', type: 'summary', recipients: '', enabled: true }); draw(); }
+      if (t.dataset.del) { read(); list.splice(+t.dataset.del, 1); draw(); document.getElementById('dirty').classList.remove('hidden'); }
+    });
+    document.getElementById('save').onclick = () => { read(); saveSettings({ reportSchedules: list }).catch(e => toast(e.message, 'err')); };
+  },
+
+  async log() {
+    shell('سجل التغييرات', 'كل تعديل في الإعدادات والمحتوى والمستخدمين مسجّل في سجل التدقيق غير القابل للتعديل.', '<div class="card" style="padding:0;overflow-x:auto"><table class="t" id="lt"><tr><td class="muted">جاري التحميل…</td></tr></table></div>', { save: false });
+    try {
+      const rows = await api('/api/audit/settings');
+      const A = { settings_updated: 'تعديل الإعدادات', content_updated: 'تعديل محتوى الموقع', categories_updated: 'تعديل التصنيفات', user_created: 'إضافة مستخدم', user_updated: 'تعديل مستخدم', unit_updated: 'تعديل وحدة', reports_exported: 'تصدير بلاغات' };
+      document.getElementById('lt').innerHTML = `<thead><tr><th>#</th><th>الوقت</th><th>بواسطة</th><th>الإجراء</th><th>التفاصيل</th><th>البصمة</th></tr></thead><tbody>${rows.map(a => `<tr><td class="num">${a.id}</td><td class="num small">${dt(a.at)}</td><td>${esc(a.actorName || '')}</td><td>${A[a.action] || a.action}</td><td class="small">${esc(a.note || '')}</td><td class="num tiny muted" dir="ltr" style="font-family:monospace">${a.hash.slice(0, 12)}…</td></tr>`).join('') || '<tr><td colspan="6" class="muted">لسه مفيش تغييرات</td></tr>'}</tbody>`;
+    } catch (e) { document.getElementById('lt').innerHTML = `<tr><td class="danger-note">${esc(e.message)}</td></tr>`; }
+  },
+};
+
+async function route() {
+  const k = location.hash.slice(1) || 'general';
+  document.querySelectorAll('.side a').forEach(a => a.classList.toggle('on', a.dataset.k === k));
+  await (views[k] || views.general)();
+  paintRo();
+}
+window.addEventListener('hashchange', route);
+M = await meta();
+route();
+</script>
+</body>
+</html>

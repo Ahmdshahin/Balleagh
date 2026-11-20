@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>بلّغ — الخريطة</title>
+<link rel="icon" href="/brand/ballegh-mark.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+<link href="/css/app.css" rel="stylesheet">
+<style>
+  body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+  .stage { flex:1; position:relative; min-height:0; }
+  #map { position:absolute; inset:0; }
+  .panel { position:absolute; z-index:5; background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:var(--sh-md); }
+  .layers { top:12px; right:12px; width:290px; max-height:calc(100% - 24px); overflow-y:auto; padding:12px 14px; }
+  .layers h4 { margin:12px 0 6px; font-size:12px; color:var(--muted); font-weight:600; }
+  .layers h4:first-child { margin-top:0; }
+  .ly { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:13px; }
+  .ly input[type=range] { width:70px; margin-inline-start:auto; }
+  .ly .sw { width:14px; height:14px; border-radius:4px; flex:none; }
+  .bases { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .bases button { border:2px solid var(--border); border-radius:10px; padding:0; overflow:hidden; background:var(--surface-2); cursor:pointer; font-size:11px; }
+  .bases button.on { border-color:var(--primary); }
+  .bases button i { display:block; height:38px; background-size:cover; background-position:center; }
+  .bases button span { display:block; padding:3px 0; }
+  .seg { display:flex; background:var(--surface-2); border-radius:9px; padding:3px; gap:3px; }
+  .seg button { flex:1; border:0; background:none; border-radius:7px; padding:5px 2px; font-size:12px; cursor:pointer; color:var(--muted); }
+  .seg button.on { background:var(--surface); color:var(--text); font-weight:600; box-shadow:var(--sh-sm); }
+  .search { top:12px; left:50%; transform:translateX(-50%); width:min(420px,calc(100% - 640px)); min-width:260px; padding:4px; }
+  .search input { border:0; outline:none; width:100%; padding:9px 12px; background:transparent; }
+  .search .res { border-top:1px solid var(--border); max-height:300px; overflow:auto; }
+  .search .res div { padding:8px 12px; cursor:pointer; font-size:13px; display:flex; justify-content:space-between; gap:8px; }
+  .search .res div:hover { background:var(--surface-2); }
+  .tools { top:12px; left:12px; display:grid; gap:6px; padding:6px; }
+  .tools button { width:38px; height:38px; border-radius:10px; border:0; background:none; cursor:pointer; display:grid; place-items:center; color:var(--text); }
+  .tools button:hover { background:var(--surface-2); }
+  .tools button.on { background:var(--primary); color:#fff; }
+  .stats { bottom:96px; left:12px; width:280px; padding:12px 14px; }
+  .stats h4 { margin:0 0 8px; font-size:13px; }
+  .stats .g { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+  .stats .g div { background:var(--surface-2); border-radius:10px; padding:6px 10px; }
+  .stats .g b { display:block; font-size:18px; font-variant-numeric:tabular-nums; }
+  .stats .g span { font-size:11px; color:var(--muted); }
+  .mini-bar { display:grid; grid-template-columns:110px 1fr 30px; gap:6px; align-items:center; font-size:12px; margin-top:4px; }
+  .mini-bar i { height:7px; border-radius:4px; background:var(--green-500); display:block; }
+  .timebar { bottom:12px; left:12px; right:314px; padding:10px 14px; display:flex; align-items:center; gap:12px; }
+  .timebar input[type=range] { flex:1; accent-color:var(--primary); }
+  .timebar .d { font-weight:600; min-width:150px; text-align:center; font-variant-numeric:tabular-nums; }
+  .coords { position:absolute; bottom:70px; right:314px; z-index:4; background:rgb(14 21 17/.75); color:#fff; font-size:11px; padding:3px 8px; border-radius:6px; direction:ltr; font-family:monospace; }
+  .measure-box { position:absolute; top:12px; left:62px; z-index:6; background:#16211A; color:#fff; padding:8px 12px; border-radius:10px; font-size:13px; }
+  .cl-marker { width:34px; height:34px; border-radius:50%; background:rgb(24 117 53/.88); color:#fff; display:grid; place-items:center; font-size:12px; font-weight:700; border:3px solid rgb(255 255 255/.85); cursor:pointer; font-variant-numeric:tabular-nums; }
+  .cl-marker.big { width:46px; height:46px; background:rgb(234 88 12/.9); font-size:13px; }
+  .idn { min-width:240px; max-width:300px; }
+  .idn h5 { margin:8px 0 2px; font-size:11px; color:var(--muted); font-weight:600; }
+  .idn h5:first-child { margin-top:0; }
+  .idn .it { font-size:13px; }
+  @media (max-width:1000px) { .stats, .search { display:none; } .timebar { right:12px; } .layers { width:240px; } }
+</style>
+</head>
+<body>
+<header class="topbar"><span id="brand"></span><span class="spacer"></span><span class="small muted" id="countTop"></span></header>
+<div class="stage">
+  <div id="map"></div>
+  <div class="panel layers" id="layers">
+    <h4>الخريطة الأساسية</h4>
+    <div class="bases" id="bases">
+      <button data-b="osm" class="on"><i style="background:linear-gradient(135deg,#F2EFE9,#DDE8D5)"></i><span>خريطة</span></button>
+      <button data-b="sat"><i style="background:linear-gradient(135deg,#3E4A2E,#7B6A4A)"></i><span>أقمار صناعية</span></button>
+      <button data-b="none"><i style="background:#F7F9F7"></i><span>بدون</span></button>
+    </div>
+    <h4>الحدود الإدارية</h4>
+    <label class="ly"><input type="checkbox" data-ly="outline" checked><span class="sw" style="border:2px solid #135F2B"></span>حدود المحافظة</label>
+    <label class="ly"><input type="checkbox" data-ly="centers" checked><span class="sw" style="border:2px dashed #0F172A"></span>المراكز</label>
+    <label class="ly"><input type="checkbox" data-ly="units" checked><span class="sw" style="background:#16A34A55;border:1px solid #135F2B"></span>الوحدات المحلية<input type="range" min="0" max="80" value="30" data-op="units-fill" title="الشفافية"></label>
+    <div class="seg" id="unitMode" style="margin:2px 0 6px"><button data-m="perf" class="on">حسب الأداء</button><button data-m="count">حسب عدد البلاغات</button><button data-m="plain">بدون تلوين</button></div>
+    <label class="ly"><input type="checkbox" data-ly="villages"><span class="sw" style="border:1px solid #64748B"></span>القرى والأحياء</label>
+    <label class="ly"><input type="checkbox" data-ly="nounit" checked><span class="sw" style="background:repeating-linear-gradient(45deg,#0F766E55 0 3px,transparent 3px 6px);border:1px solid #0F766E"></span>مناطق تتبع المحافظة مباشرة</label>
+    <h4>البلاغات</h4>
+    <div class="seg" id="ptMode" style="margin-bottom:6px"><button data-m="points" class="on">نقاط</button><button data-m="cluster">تجميع</button><button data-m="heat">حرارية</button><button data-m="off">إخفاء</button></div>
+    <label class="field" style="margin-bottom:6px"><span>التلوين</span><select class="input" id="colorBy" style="padding:6px 10px;font-size:13px"><option value="status">حسب الحالة</option><option value="priority">حسب الأولوية</option><option value="category">حسب التصنيف</option></select></label>
+    <div class="stack" style="gap:6px">
+      <select class="input" id="fCat" style="padding:6px 10px;font-size:13px"><option value="">كل التصنيفات</option></select>
+      <select class="input" id="fStatus" style="padding:6px 10px;font-size:13px"><option value="">كل الحالات</option><option value="open">المفتوحة</option><option value="late">المتأخرة</option><option value="resolved">المحلولة والمغلقة</option><option value="rejected">المرفوضة</option></select>
+      <select class="input" id="fCenter" style="padding:6px 10px;font-size:13px"><option value="">كل المراكز</option></select>
+    </div>
+    <h4>دليل الألوان</h4><div id="legend" class="small" style="display:grid;gap:3px"></div>
+  </div>
+  <div class="panel search"><input id="q" placeholder="ابحث عن قرية، وحدة محلية، أو رقم بلاغ…" autocomplete="off"><div class="res hidden" id="res"></div></div>
+  <div class="panel tools" id="tools">
+    <button data-t="home" title="عرض المحافظة كاملة"></button>
+    <button data-t="identify" class="on" title="استعلام عن معلم (اضغط على الخريطة)"></button>
+    <button data-t="measure" title="قياس مسافة"></button>
+    <button data-t="locate" title="موقعي"></button>
+    <button data-t="geojson" title="تصدير البلاغات الظاهرة GeoJSON"></button>
+    <button data-t="csv" title="تصدير Excel / CSV"></button>
+    <button data-t="print" title="طباعة الخريطة"></button>
+  </div>
+  <div class="panel stats" id="stats"></div>
+  <div class="panel timebar">
+    <button class="icon-btn" id="play" title="تشغيل">▶</button>
+    <select class="input" id="win" style="width:auto;padding:6px 10px;font-size:13px"><option value="all">تراكمي</option><option value="7">آخر 7 أيام من التاريخ</option><option value="1">اليوم المحدد فقط</option></select>
+    <input type="range" id="time" min="0" max="60" value="60">
+    <span class="d" id="tlabel"></span>
+  </div>
+  <div class="coords" id="coords"></div>
+</div>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script type="module">
+import { api, meta, useUser, esc, fmt, dt, ago, statusBadge, priorityBadge, bandBadge, catAr, statusAr, priorityAr, brandHtml, mountNav, toast, STATUS_COLOR, PRIORITY_COLOR, BAND_COLOR, BAND_AR } from '/js/common.js';
+import { icon } from '/js/icons.js';
+import { createMap, setBase, reportsToFC, mapReady } from '/js/map.js';
+
+document.getElementById('brand').innerHTML = brandHtml(); mountNav('map');
+useUser(localStorage.getItem('ballegh:ops') || 'ops-sup');
+const M = await meta();
+const [geo, kpis] = await Promise.all([api('/api/geo'), api('/api/kpis?days=60')]);
+let reports = await api('/api/reports?days=60');
+const DAY = 86_400_000, NOW = Date.now(), START = NOW - 60 * DAY;
+const OPEN = ['NEW', 'ROUTED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'PENDING_BUDGET', 'PARTIALLY_RESOLVED', 'REOPENED', 'NOT_COMPETENT', 'OPS_QUEUE'];
+const CAT_COLORS = ['#1E8A3E', '#0E7490', '#B45309', '#7C3AED', '#BE123C', '#15803D', '#9A3412', '#1D4ED8', '#A16207', '#0F766E', '#6D28D9', '#B91C1C', '#475569', '#DB2777', '#4D7C0F'];
+const catColor = Object.fromEntries(M.categories.map((c, i) => [c.code, CAT_COLORS[i % CAT_COLORS.length]]));
+
+document.getElementById('fCat').insertAdjacentHTML('beforeend', M.categories.map(c => `<option value="${c.code}">${esc(c.ar)}</option>`).join(''));
+document.getElementById('fCenter').insertAdjacentHTML('beforeend', geo.centers.features.map(f => `<option value="${f.properties.id}">${esc(f.properties.name)}</option>`).join(''));
+const TOOL_ICONS = { home: 'layers', identify: 'filter', measure: 'roads', locate: 'locate', geojson: 'doc', csv: 'image', print: 'camera' };
+document.querySelectorAll('#tools button').forEach(b => b.innerHTML = icon({ home: 'pin', identify: 'alert', measure: 'roads', locate: 'locate', geojson: 'doc', csv: 'filter', print: 'image' }[b.dataset.t], 20));
+
+// ---------- map & layers ----------
+const map = createMap('map', { zoom: 9.6 });
+map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+map.addControl(new maplibregl.FullscreenControl(), 'top-left');
+await mapReady(map);
+map.addLayer({ id: 'blank', type: 'background', paint: { 'background-color': '#F7F9F7' }, layout: { visibility: 'none' } }, 'osm');
+
+const unitsFC = structuredClone(geo.units);
+unitsFC.features.forEach(f => { const u = kpis.units.find(x => x.id === f.properties.id); Object.assign(f.properties, { band: u?.band || 'insufficient', score: u?.score ?? null, total: u?.total || 0 }); });
+const maxTotal = Math.max(...unitsFC.features.map(f => f.properties.total), 1);
+map.addSource('outline', { type: 'geojson', data: geo.outline });
+map.addSource('centers', { type: 'geojson', data: geo.centers });
+map.addSource('units', { type: 'geojson', data: unitsFC, promoteId: 'id' });
+map.addSource('villages', { type: 'geojson', data: geo.villages });
+map.addSource('nounit', { type: 'geojson', data: geo.noUnitAreas });
+map.addLayer({ id: 'units-fill', type: 'fill', source: 'units', paint: { 'fill-color': ['match', ['get', 'band'], 'good', BAND_COLOR.good, 'fair', BAND_COLOR.fair, 'poor', BAND_COLOR.poor, BAND_COLOR.insufficient], 'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.55, 0.3] } });
+map.addLayer({ id: 'units-line', type: 'line', source: 'units', paint: { 'line-color': '#135F2B', 'line-width': 1, 'line-opacity': 0.7 } });
+map.addLayer({ id: 'villages-line', type: 'line', source: 'villages', layout: { visibility: 'none' }, paint: { 'line-color': '#64748B', 'line-width': 0.8, 'line-dasharray': [2, 2] } });
+map.addLayer({ id: 'nounit-fill', type: 'fill', source: 'nounit', paint: { 'fill-color': '#0F766E', 'fill-opacity': 0.15 } });
+map.addLayer({ id: 'nounit-line', type: 'line', source: 'nounit', paint: { 'line-color': '#0F766E', 'line-width': 1.5, 'line-dasharray': [3, 2] } });
+map.addLayer({ id: 'centers-line', type: 'line', source: 'centers', paint: { 'line-color': '#0F172A', 'line-width': 2, 'line-dasharray': [4, 2], 'line-opacity': 0.75 } });
+map.addLayer({ id: 'outline-line', type: 'line', source: 'outline', paint: { 'line-color': '#135F2B', 'line-width': 3.5 } });
+
+map.addSource('reports', { type: 'geojson', data: reportsToFC([]) });
+map.addSource('reports-cl', { type: 'geojson', data: reportsToFC([]), cluster: true, clusterRadius: 50, clusterMaxZoom: 14 });
+map.addLayer({ id: 'heat', type: 'heatmap', source: 'reports', layout: { visibility: 'none' }, paint: {
+  'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 8, 1, 14, 3], 'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 8, 14, 14, 40],
+  'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(254,243,199,0)', 0.2, '#FEF3C7', 0.45, '#F4A21D', 0.7, '#EA580C', 1, '#B91C1C'], 'heatmap-opacity': 0.85 } });
+map.addLayer({ id: 'cl-pts', type: 'circle', source: 'reports-cl', filter: ['!', ['has', 'point_count']], layout: { visibility: 'none' }, paint: { 'circle-radius': 5, 'circle-color': '#187535', 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2 } });
+map.addLayer({ id: 'pts', type: 'circle', source: 'reports', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 3.5, 14, 8], 'circle-stroke-color': '#fff', 'circle-stroke-width': 1.2, 'circle-color': '#2563EB' } });
+map.addSource('measure', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+map.addLayer({ id: 'measure-line', type: 'line', source: 'measure', paint: { 'line-color': '#F4A21D', 'line-width': 3, 'line-dasharray': [2, 1] } });
+map.addLayer({ id: 'measure-pts', type: 'circle', source: 'measure', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#F4A21D', 'circle-stroke-width': 3 } });
+
+const LAYER_GROUPS = { outline: ['outline-line'], centers: ['centers-line'], units: ['units-fill', 'units-line'], villages: ['villages-line'], nounit: ['nounit-fill', 'nounit-line'] };
+const vis = (ids, on) => ids.forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
+document.getElementById('layers').addEventListener('change', e => { const ly = e.target.dataset.ly; if (ly) vis(LAYER_GROUPS[ly], e.target.checked); });
+document.getElementById('layers').addEventListener('input', e => { const op = e.target.dataset.op; if (op) map.setPaintProperty(op, 'fill-opacity', Number(e.target.value) / 100); });
+document.getElementById('bases').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#bases button').forEach(x => x.classList.toggle('on', x === b));
+  if (b.dataset.b === 'none') { vis(['osm', 'sat'], false); vis(['blank'], true); } else { vis(['blank'], false); setBase(map, b.dataset.b); }
+};
+let unitMode = 'perf';
+document.getElementById('unitMode').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return; unitMode = b.dataset.m;
+  document.querySelectorAll('#unitMode button').forEach(x => x.classList.toggle('on', x === b));
+  map.setPaintProperty('units-fill', 'fill-color', unitMode === 'perf' ? ['match', ['get', 'band'], 'good', BAND_COLOR.good, 'fair', BAND_COLOR.fair, 'poor', BAND_COLOR.poor, BAND_COLOR.insufficient]
+    : unitMode === 'count' ? ['interpolate', ['linear'], ['get', 'total'], 0, '#FEF3C7', maxTotal / 2, '#F4A21D', maxTotal, '#B91C1C'] : '#187535');
+  if (unitMode === 'plain') map.setPaintProperty('units-fill', 'fill-opacity', 0.05);
+  legend();
+};
+
+// ---------- reports filtering ----------
+let ptMode = 'points', colorBy = 'status';
+const timeEl = document.getElementById('time');
+function timeWindow() {
+  const end = START + Number(timeEl.value) * DAY + DAY - 1;
+  const w = document.getElementById('win').value;
+  return [w === 'all' ? 0 : end - Number(w) * DAY + 1, Math.min(end, NOW)];
+}
+function filtered() {
+  const [a, b] = timeWindow();
+  const c = document.getElementById('fCat').value, s = document.getElementById('fStatus').value, ce = document.getElementById('fCenter').value;
+  return reports.filter(r => r.createdAt >= a && r.createdAt <= b && (!c || r.category === c) && (!ce || r.centerId === ce) &&
+    (!s || (s === 'open' ? OPEN.includes(r.status) : s === 'late' ? OPEN.includes(r.status) && Date.now() > r.resolveDueAt : s === 'resolved' ? ['RESOLVED', 'CLOSED'].includes(r.status) : ['REJECTED', 'NOT_COMPETENT'].includes(r.status))));
+}
+function colorExpr() {
+  const pairs = colorBy === 'priority' ? PRIORITY_COLOR : colorBy === 'category' ? catColor : STATUS_COLOR;
+  return ['match', ['get', colorBy], ...Object.entries(pairs).flat(), '#64748B'];
+}
+let current = [];
+function refresh() {
+  current = filtered();
+  const fc = reportsToFC(current);
+  map.getSource('reports').setData(fc);
+  map.getSource('reports-cl').setData(fc);
+  map.setPaintProperty('pts', 'circle-color', colorExpr());
+  map.setPaintProperty('cl-pts', 'circle-color', colorExpr());
+  vis(['pts'], ptMode === 'points'); vis(['heat'], ptMode === 'heat'); vis(['cl-pts'], ptMode === 'cluster');
+  const [a, b] = timeWindow();
+  document.getElementById('tlabel').textContent = a ? `${new Date(a).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'short' })} — ${new Date(b).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'short' })}` : `حتى ${new Date(b).toLocaleDateString('ar-EG-u-nu-latn', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+  document.getElementById('countTop').textContent = `${fmt(current.length)} بلاغ ظاهر`;
+  updateClusters(); viewStats(); legend();
+}
+document.getElementById('ptMode').onclick = e => { const b = e.target.closest('button'); if (!b) return; ptMode = b.dataset.m; document.querySelectorAll('#ptMode button').forEach(x => x.classList.toggle('on', x === b)); refresh(); };
+['fCat', 'fStatus', 'fCenter', 'win'].forEach(id => document.getElementById(id).onchange = refresh);
+document.getElementById('colorBy').onchange = e => { colorBy = e.target.value; refresh(); };
+timeEl.oninput = refresh;
+
+// cluster bubbles as HTML markers (no glyph server needed)
+let clMarkers = {};
+function updateClusters() {
+  const keep = {};
+  if (ptMode === 'cluster' && map.isSourceLoaded('reports-cl')) {
+    for (const f of map.querySourceFeatures('reports-cl')) {
+      const p = f.properties; if (!p.cluster) continue;
+      const id = p.cluster_id; if (keep[id]) continue;
+      let m = clMarkers[id];
+      if (!m) {
+        const el = document.createElement('div'); el.className = 'cl-marker' + (p.point_count >= 50 ? ' big' : ''); el.textContent = p.point_count_abbreviated;
+        el.onclick = async () => { const z = await map.getSource('reports-cl').getClusterExpansionZoom(id); map.easeTo({ center: f.geometry.coordinates, zoom: z }); };
+        m = new maplibregl.Marker({ element: el }).setLngLat(f.geometry.coordinates);
+      }
+      keep[id] = m; if (!clMarkers[id]) m.addTo(map);
+    }
+  }
+  for (const id in clMarkers) if (!keep[id]) clMarkers[id].remove();
+  clMarkers = keep;
+}
+map.on('render', () => { if (ptMode === 'cluster') updateClusters(); });
+
+// ---------- stats for current view ----------
+function viewStats() {
+  const b = map.getBounds();
+  const inView = current.filter(r => b.contains(r.location));
+  const open = inView.filter(r => OPEN.includes(r.status)).length;
+  const late = inView.filter(r => OPEN.includes(r.status) && r.status !== 'PENDING_BUDGET' && Date.now() > r.resolveDueAt).length;
+  const solved = inView.filter(r => ['RESOLVED', 'CLOSED'].includes(r.status)).length;
+  const byCat = {}; inView.forEach(r => byCat[r.category] = (byCat[r.category] || 0) + 1);
+  const top = Object.entries(byCat).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const max = top[0]?.[1] || 1;
+  document.getElementById('stats').innerHTML = `<h4>إحصائيات المنطقة الظاهرة</h4>
+    <div class="g"><div><b>${fmt(inView.length)}</b><span>بلاغ</span></div><div><b>${fmt(open)}</b><span>مفتوح</span></div><div><b style="color:${late ? '#B91C1C' : ''}">${fmt(late)}</b><span>متأخر</span></div><div><b style="color:#15803D">${fmt(solved)}</b><span>محلول</span></div></div>
+    ${top.map(([c, n]) => `<div class="mini-bar"><span>${esc(catAr(c))}</span><i style="width:${n / max * 100}%;background:${colorBy === 'category' ? catColor[c] : ''}"></i><span class="num">${n}</span></div>`).join('')}`;
+}
+map.on('moveend', viewStats);
+
+function legend() {
+  const pts = colorBy === 'priority' ? Object.entries(PRIORITY_COLOR).map(([k, c]) => [c, priorityAr(k)])
+    : colorBy === 'category' ? M.categories.map(c => [catColor[c.code], c.ar])
+      : [['ROUTED', 'جديد / محوّل'], ['ACKNOWLEDGED', 'تم الاستلام'], ['IN_PROGRESS', 'جاري العمل'], ['PENDING_BUDGET', 'ميزانية / جزئي'], ['RESOLVED', 'تم الحل'], ['CLOSED', 'مغلق'], ['REJECTED', 'مرفوض'], ['REOPENED', 'معاد فتحه'], ['OPS_QUEUE', 'لدى الغرفة']].map(([k, t]) => [STATUS_COLOR[k], t]);
+  const units = unitMode === 'perf' ? Object.entries(BAND_COLOR).map(([k, c]) => `<div><span class="sw" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${c};margin-inline-end:6px"></span>وحدة: ${BAND_AR[k]}</div>`).join('')
+    : unitMode === 'count' ? `<div style="height:8px;border-radius:4px;background:linear-gradient(90deg,#B91C1C,#F4A21D,#FEF3C7)"></div><div class="row tiny muted"><span>أكثر</span><span class="spacer"></span><span>أقل</span></div>` : '';
+  document.getElementById('legend').innerHTML = (ptMode === 'heat' ? '<div class="muted">كثافة البلاغات: من الأصفر للأحمر</div>' : pts.map(([c, t]) => `<div><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c};margin-inline-end:6px"></span>${esc(t)}</div>`).join('')) + '<div style="height:6px"></div>' + units;
+}
+
+// ---------- tools ----------
+let tool = 'identify', measurePts = [], mBox;
+const hav = (a, b) => { const R = 6371000, t = x => x * Math.PI / 180; const dLa = t(b[1] - a[1]), dLo = t(b[0] - a[0]); const h = Math.sin(dLa / 2) ** 2 + Math.cos(t(a[1])) * Math.cos(t(b[1])) * Math.sin(dLo / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+function drawMeasure() {
+  const feats = measurePts.map(p => ({ type: 'Feature', geometry: { type: 'Point', coordinates: p } }));
+  if (measurePts.length > 1) feats.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: measurePts } });
+  map.getSource('measure').setData({ type: 'FeatureCollection', features: feats });
+  let d = 0; for (let i = 1; i < measurePts.length; i++) d += hav(measurePts[i - 1], measurePts[i]);
+  if (!mBox) { mBox = document.createElement('div'); mBox.className = 'measure-box'; document.querySelector('.stage').appendChild(mBox); }
+  mBox.textContent = measurePts.length ? `المسافة: ${d >= 1000 ? (d / 1000).toFixed(2) + ' كم' : Math.round(d) + ' م'} — اضغط مرتين للإنهاء` : 'اضغط على الخريطة لبدء القياس';
+}
+function setTool(t) {
+  tool = t; document.querySelectorAll('#tools button[data-t="identify"],#tools button[data-t="measure"]').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  map.getCanvas().style.cursor = t === 'measure' ? 'crosshair' : '';
+  if (t !== 'measure') { measurePts = []; map.getSource('measure').setData({ type: 'FeatureCollection', features: [] }); mBox?.remove(); mBox = null; } else drawMeasure();
+}
+document.getElementById('tools').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const t = b.dataset.t;
+  if (t === 'identify' || t === 'measure') return setTool(tool === t && t === 'measure' ? 'identify' : t);
+  if (t === 'home') map.fitBounds(geo.bbox, { padding: 40 });
+  if (t === 'locate') navigator.geolocation?.getCurrentPosition(p => map.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 14 }), () => toast('مش قادر أحدد موقعك', 'err'));
+  if (t === 'geojson') {
+    const fc = { type: 'FeatureCollection', features: current.map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: r.location }, properties: { code: r.code, category: catAr(r.category), status: statusAr(r.status), priority: priorityAr(r.priority), village: r.villageName, unit: r.unitName, center: r.centerName, createdAt: new Date(r.createdAt).toISOString() } })) };
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(fc)], { type: 'application/geo+json' })); a.download = `ballegh-reports-${new Date().toISOString().slice(0, 10)}.geojson`; a.click();
+    toast(`تم تصدير ${current.length} بلاغ`, 'ok');
+  }
+  if (t === 'csv') {
+    const [a, bb] = timeWindow(); const p = new URLSearchParams({ from: a || START, to: bb });
+    ['fCat:category', 'fCenter:center'].forEach(x => { const [id, k] = x.split(':'); const v = document.getElementById(id).value; if (v) p.set(k, v); });
+    const s = document.getElementById('fStatus').value; if (s === 'open' || s === 'late') p.set('status', s);
+    downloadCsv('/api/export/reports?' + p);
+  }
+  if (t === 'print') window.print();
+};
+async function downloadCsv(url) {
+  const res = await fetch(url, { headers: { 'x-user-id': localStorage.getItem('ballegh:ops') || 'ops-sup' } });
+  if (!res.ok) return toast('غير مصرح بالتصدير', 'err');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(await res.blob()); a.download = `ballegh-reports-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+}
+map.on('dblclick', e => { if (tool === 'measure') { e.preventDefault(); setTool('identify'); } });
+map.on('click', e => {
+  if (tool === 'measure') { measurePts.push([e.lngLat.lng, e.lngLat.lat]); return drawMeasure(); }
+  identify(e);
+});
+
+// identify: everything under the click
+async function identify(e) {
+  const pt = [e.lngLat.lng, e.lngLat.lat];
+  const rf = map.queryRenderedFeatures([[e.point.x - 6, e.point.y - 6], [e.point.x + 6, e.point.y + 6]], { layers: ['pts', 'cl-pts'].filter(l => map.getLayoutProperty(l, 'visibility') !== 'none') });
+  const ids = [...new Set(rf.map(f => f.properties.id))];
+  const loc = await api(`/api/locate?lng=${pt[0]}&lat=${pt[1]}`);
+  const u = loc.unit ? kpis.units.find(x => x.id === loc.unit.id) : null;
+  const reps = ids.map(id => reports.find(r => r.id === id)).filter(Boolean);
+  let html = `<div class="idn">`;
+  if (reps.length) html += `<h5>البلاغات (${reps.length})</h5>${reps.slice(0, 4).map(r => `<div class="it" style="padding:4px 0;border-bottom:1px solid var(--surface-2)"><div class="row"><b>${esc(catAr(r.category))}</b><span class="spacer"></span>${statusBadge(r.status)}</div><div class="tiny muted num" dir="ltr" style="text-align:right">${esc(r.code)} · ${ago(r.createdAt)}</div><a class="tiny" href="/report.html?id=${r.id}" target="_blank">التقرير الرسمي ↗</a></div>`).join('')}`;
+  if (!loc.inside) html += `<h5>الموقع</h5><div class="it">خارج نطاق محافظة الفيوم</div>`;
+  else if (loc.noUnitArea) html += `<h5>المنطقة</h5><div class="it">${esc(loc.noUnitArea)} — تتبع المحافظة مباشرة</div>`;
+  else html += `<h5>القرية / الحي</h5><div class="it">${esc(loc.village.name)}</div><h5>الوحدة المحلية</h5><div class="it"><b>${esc(loc.unit.name)}</b> ${u ? bandBadge(u.band, u.score) : ''}</div>${u ? `<div class="tiny muted num">${u.total} بلاغ (60 يوم) · ${u.open} مفتوح · ${u.overdue} متأخر · الترتيب ${u.rank ?? '—'}/${u.rankOf}</div>` : ''}<h5>المركز</h5><div class="it">${esc(loc.center.name)}</div>`;
+  html += `<h5>الإحداثيات</h5><div class="it num tiny" dir="ltr" style="text-align:right">${pt[1].toFixed(5)}, ${pt[0].toFixed(5)}</div></div>`;
+  new maplibregl.Popup({ maxWidth: '320px' }).setLngLat(e.lngLat).setHTML(html).addTo(map);
+}
+let hov = null;
+map.on('mousemove', 'units-fill', e => { if (hov !== null) map.setFeatureState({ source: 'units', id: hov }, { hover: false }); hov = e.features[0].id; map.setFeatureState({ source: 'units', id: hov }, { hover: true }); });
+map.on('mouseleave', 'units-fill', () => { if (hov !== null) map.setFeatureState({ source: 'units', id: hov }, { hover: false }); hov = null; });
+map.on('mousemove', e => document.getElementById('coords').textContent = `${e.lngLat.lat.toFixed(5)}, ${e.lngLat.lng.toFixed(5)}  z${map.getZoom().toFixed(1)}`);
+map.on('mouseenter', 'pts', () => { if (tool === 'identify') map.getCanvas().style.cursor = 'pointer'; });
+map.on('mouseleave', 'pts', () => { if (tool === 'identify') map.getCanvas().style.cursor = ''; });
+
+// ---------- search ----------
+const index = [
+  ...geo.villages.features.map(f => ({ t: f.properties.name, k: f.properties.kind, f })),
+  ...geo.units.features.map(f => ({ t: f.properties.name, k: 'وحدة محلية', f })),
+  ...geo.centers.features.map(f => ({ t: f.properties.name, k: 'مركز', f })),
+];
+const bboxOf = g => { let a = [180, 90, -180, -90]; JSON.stringify(g.coordinates).match(/-?\d+\.?\d*,-?\d+\.?\d*/g).forEach(s => { const [x, y] = s.split(',').map(Number); a = [Math.min(a[0], x), Math.min(a[1], y), Math.max(a[2], x), Math.max(a[3], y)]; }); return a; };
+const resEl = document.getElementById('res');
+document.getElementById('q').oninput = e => {
+  const q = e.target.value.trim();
+  if (!q) return resEl.classList.add('hidden');
+  const hits = [...index.filter(x => x.t.includes(q)).slice(0, 8).map(x => ({ label: x.t, kind: x.k, go: () => map.fitBounds(bboxOf(x.f.geometry), { padding: 60, maxZoom: 14 }) })),
+    ...reports.filter(r => r.code.includes(q.toUpperCase())).slice(0, 5).map(r => ({ label: r.code, kind: catAr(r.category), go: () => { map.flyTo({ center: r.location, zoom: 16 }); setTimeout(() => identify({ lngLat: { lng: r.location[0], lat: r.location[1] }, point: map.project(r.location) }), 1300); } }))];
+  resEl.innerHTML = hits.map((h, i) => `<div data-i="${i}"><span>${esc(h.label)}</span><span class="muted tiny">${esc(h.kind)}</span></div>`).join('') || '<div class="muted">لا نتائج</div>';
+  resEl.classList.remove('hidden');
+  resEl.onclick = ev => { const d = ev.target.closest('[data-i]'); if (!d) return; hits[d.dataset.i].go(); resEl.classList.add('hidden'); };
+};
+
+// ---------- time playback ----------
+let timer = null;
+document.getElementById('play').onclick = () => {
+  const btn = document.getElementById('play');
+  if (timer) { clearInterval(timer); timer = null; btn.textContent = '▶'; return; }
+  if (Number(timeEl.value) >= 60) timeEl.value = 0;
+  btn.textContent = '❚❚';
+  timer = setInterval(() => { timeEl.value = Number(timeEl.value) + 1; refresh(); if (Number(timeEl.value) >= 60) { clearInterval(timer); timer = null; btn.textContent = '▶'; } }, 350);
+};
+
+// live
+const sock = io();
+sock.on('report:new', r => { reports.push(r); refresh(); });
+sock.on('report:update', r => { const i = reports.findIndex(x => x.id === r.id); if (i >= 0) reports[i] = r; refresh(); });
+refresh();
+</script>
+</body>
+</html>
