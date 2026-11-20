@@ -4,10 +4,9 @@
 ده **مش نظام الإنتاج**. البنية المعتمدة للإنتاج موصوفة في [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
 
 ## التشغيل
-محتاج Node.js 18 أو أحدث.
+محتاج Node.js 20 أو أحدث. الأوامر بتتشغّل من **جذر المشروع** (`D:\Systems\Blagh_System`)، مش من مجلد demo.
 
 ```powershell
-cd demo
 npm install
 npm start
 ```

@@ -32,7 +32,7 @@
    | Root directory | `/` (جذر المستودع) |
    | Install command | `npm install` |
    | Build command | (فاضي) |
-   | Start command / Entry file | `npm start` (أو `demo/server.js`) |
+   | Start command / Entry file | `npm start` (أو `server.js`) |
 
 4. **Environment variables** (مهمة جداً):
 

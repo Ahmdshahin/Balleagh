@@ -4,11 +4,12 @@
   "private": true,
   "description": "بلّغ — منصة بلاغات محافظة الفيوم (demo)",
   "type": "module",
-  "main": "demo/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node demo/server.js",
+    "start": "node server.js",
     "seed": "node demo/scripts/seed.js",
-    "auto-deploy": "node scripts/auto-deploy.mjs"
+    "auto-deploy": "node scripts/auto-deploy.mjs",
+    "zip": "node scripts/make-zip.mjs"
   },
   "engines": {
     "node": ">=20"

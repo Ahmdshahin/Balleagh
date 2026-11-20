@@ -4,7 +4,7 @@
     {
       "name": "ballegh-demo",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "demo", "start"],
+      "runtimeArgs": ["start"],
       "port": 4000
     }
   ]
