@@ -1,18 +1,16 @@
 {
-  "name": "ballegh",
-  "version": "0.1.0",
+  "name": "balleagh",
+  "version": "1.0.0",
   "private": true,
-  "description": "بلّغ — منصة بلاغات محافظة الفيوم (demo)",
-  "type": "module",
+  "description": "Ballegh - citizen reports platform for Fayoum Governorate (demo)",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
+    "dev": "node --watch server.js",
     "seed": "node demo/scripts/seed.js",
-    "auto-deploy": "node scripts/auto-deploy.mjs",
-    "zip": "node scripts/make-zip.mjs"
-  },
-  "engines": {
-    "node": ">=20"
+    "zip": "node scripts/make-zip.mjs",
+    "auto-deploy": "node scripts/auto-deploy.mjs"
   },
   "dependencies": {
     "@turf/turf": "^7.4.0",
