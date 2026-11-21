@@ -6,6 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import multer from 'multer';
+import compression from 'compression';
 import { Server } from 'socket.io';
 import { fileURLToPath } from 'node:url';
 import { DATA_DIR, db, load, save, createReport, act, runEscalation, userById, reportById, verifyAudit, httpError, audit, unitName, getCat } from './lib/store.js';
@@ -24,6 +25,7 @@ if (!load()) { console.log('No data yet — generating demo data…'); console.l
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 app.set('trust proxy', true);
 
@@ -119,9 +121,15 @@ app.get('/api/info', wrap(() => {
   return { port: PORT, lan: ips.map(ip => `http://${ip}:${PORT}`) };
 }));
 app.get('/api/meta', wrap(() => ({ categories: db.categories, statusAr: STATUS_AR, priorityAr: PRIORITY_AR, settings: db.settings })));
-app.get('/api/geo', wrap(() => {
+let geoCache = null;
+app.get('/api/geo', wrap((_req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  const key = JSON.stringify(db.unitMeta);
+  if (geoCache?.key === key) return geoCache.body;
   const g = buildGeo();
-  return { ...g, units: { ...g.units, features: g.units.features.map(f => ({ ...f, properties: { ...f.properties, name: unitName(f.properties.id, f.properties.name), defaultName: f.properties.name } })) } };
+  const body = { ...g, units: { ...g.units, features: g.units.features.map(f => ({ ...f, properties: { ...f.properties, name: unitName(f.properties.id, f.properties.name), defaultName: f.properties.name } })) } };
+  geoCache = { key, body };
+  return body;
 }));
 app.get('/api/content', wrap(() => db.content));
 app.get('/api/locate', wrap(req => locate(Number(req.query.lng), Number(req.query.lat))));
@@ -200,7 +208,7 @@ app.get('/api/kpis', wrap(req => {
   const u = actor(req);
   const q = req.query;
   const filter = (q.center || q.unit || q.category || q.source) ? r => (!q.center || r.centerId === q.center) && (!q.unit || r.unitId === q.unit) && (!q.category || r.category === q.category) && (!q.source || r.source === q.source) : null;
-  const k = computeKpis({ days: Number(q.days) || 30, from: q.from ? Number(q.from) : undefined, to: q.to ? Number(q.to) : undefined, filter });
+  const k = computeKpis({ days: Number(q.days) || 30, from: q.from ? Number(q.from) : undefined, to: q.to ? Number(q.to) : undefined, filter, filterKey: JSON.stringify([q.center, q.unit, q.category, q.source]) });
   if (u.role === 'UNIT_HEAD' || u.role === 'UNIT_STAFF') {
     const mine = k.units.find(x => x.id === u.unitId);
     return { days: k.days, unit: mine }; // own rank only — not the full list

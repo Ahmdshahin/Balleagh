@@ -27,12 +27,9 @@ function metrics(reports, now, all) {
   const reviews = reports.flatMap(r => r.reviews || []);
   const matched = reviews.filter(v => v.outcome === 'match').length;
   const overdue = counted.filter(r => OPEN_STATUSES.includes(r.status) && r.status !== 'PENDING_BUDGET' && now > r.resolveDueAt).length;
-  // recurring: a new report of same category within 50 m of one closed in the previous 90 days
+  // recurring: a new report of same category within 50 m of one closed in the previous 90 days (precomputed set)
   const closed = reports.filter(r => r.status === 'CLOSED' && r.closedAt);
-  let recurring = 0;
-  for (const c of closed) {
-    if (all.some(n => n !== c && !n.masterId && n.category === c.category && n.createdAt > c.closedAt && n.createdAt < c.closedAt + 90 * DAY && distanceM(n.location, c.location) <= 50)) recurring++;
-  }
+  const recurring = closed.filter(c => all.has(c.id)).length;
 
   const k = {
     total: reports.length,
@@ -66,22 +63,57 @@ function metrics(reports, now, all) {
   return k;
 }
 
-export function computeKpis({ days = 30, from, to, now = Date.now(), filter } = {}) {
+// Closed reports followed by a new same-category report within 50 m and 90 days.
+// Indexed by category + time so it stays fast with thousands of reports.
+let recurringCache = { key: '', set: new Set() };
+function recurringSet(masters) {
+  const key = `${masters.length}:${db.audit.length}`;
+  if (recurringCache.key === key) return recurringCache.set;
+  const byCat = {};
+  for (const r of masters) (byCat[r.category] ||= []).push(r);
+  for (const list of Object.values(byCat)) list.sort((a, b) => a.createdAt - b.createdAt);
+  const set = new Set();
+  for (const c of masters) {
+    if (c.status !== 'CLOSED' || !c.closedAt) continue;
+    const list = byCat[c.category];
+    let lo = 0, hi = list.length; // first report created after closedAt
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (list[mid].createdAt <= c.closedAt) lo = mid + 1; else hi = mid; }
+    for (let i = lo; i < list.length && list[i].createdAt < c.closedAt + 90 * DAY; i++) {
+      if (list[i] !== c && distanceM(list[i].location, c.location) <= 50) { set.add(c.id); break; }
+    }
+  }
+  recurringCache = { key, set };
+  return set;
+}
+
+// Short-lived result cache: dashboards poll often and data changes are batched anyway.
+const kpiCache = new Map();
+export function computeKpis(opts = {}) {
+  const key = JSON.stringify({ ...opts, filter: opts.filter ? String(opts.filterKey || opts.filter) : null, v: db.audit.length, t: Math.floor(Date.now() / 15000) });
+  if (kpiCache.has(key)) return kpiCache.get(key);
+  const out = computeKpisRaw(opts);
+  if (kpiCache.size > 50) kpiCache.clear();
+  kpiCache.set(key, out);
+  return out;
+}
+
+function computeKpisRaw({ days = 30, from, to, now = Date.now(), filter } = {}) {
   const end = to ? Math.min(to, now) : now;
   from = from ?? end - days * DAY;
   days = Math.round((end - from) / DAY);
   const masters = db.reports.filter(r => !r.masterId);
+  const rec = recurringSet(masters);
   const inWin = masters.filter(r => r.createdAt >= from && r.createdAt <= end && (!filter || filter(r)));
   const geo = buildGeo();
 
-  const overall = metrics(inWin.filter(r => r.unitId), now, masters);
+  const overall = metrics(inWin.filter(r => r.unitId), now, rec);
   overall.allTotal = db.reports.filter(r => r.createdAt >= from && r.createdAt <= end && (!filter || filter(r))).length;
   overall.duplicates = overall.allTotal - inWin.length;
   overall.opsQueue = inWin.filter(r => r.status === 'OPS_QUEUE').length;
 
   const units = geo.units.features.map(f => {
     const p = f.properties;
-    const m = metrics(inWin.filter(r => r.unitId === p.id), now, masters);
+    const m = metrics(inWin.filter(r => r.unitId === p.id), now, rec);
     return { id: p.id, name: unitName(p.id, p.name), centerId: p.centerId, centerName: p.centerName, ...m };
   });
   const ranked = units.filter(u => u.score != null).sort((a, b) => b.score - a.score);
@@ -89,7 +121,7 @@ export function computeKpis({ days = 30, from, to, now = Date.now(), filter } = 
   units.forEach(u => { u.rankOf = ranked.length; });
 
   const centers = geo.centers.features.map(f => {
-    const m = metrics(inWin.filter(r => r.centerId === f.properties.id), now, masters);
+    const m = metrics(inWin.filter(r => r.centerId === f.properties.id), now, rec);
     return { id: f.properties.id, name: f.properties.name, ...m };
   });
 
@@ -105,7 +137,7 @@ export function computeKpis({ days = 30, from, to, now = Date.now(), filter } = 
   for (let w = 7; w >= 0; w--) {
     const a = end - (w + 1) * 7 * DAY, b = end - w * 7 * DAY;
     const wk = masters.filter(r => r.unitId && r.createdAt >= a && r.createdAt < b);
-    const m = metrics(wk, now, masters);
+    const m = metrics(wk, now, rec);
     trend.push({ from: a, to: b, total: wk.length, k3: m.k3, k6: m.k6, score: m.score });
   }
 

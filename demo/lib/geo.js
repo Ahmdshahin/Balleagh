@@ -1,123 +1,110 @@
-// Demo geography for Fayoum Governorate.
-// Village points are APPROXIMATE and only for the demo. They will be replaced by the
-// official GDB (centers + villages) and the official local-unit boundaries.
-// Local-unit polygons are built the way the real system will build them before official
-// boundaries arrive: Voronoi cell per village, then union of the villages each unit serves.
-import { Delaunay } from 'd3-delaunay';
+// Fayoum geography from the official GDB (imported by scripts/import-gdb.mjs into demo/geo/).
+//   border.geojson    governorate boundary
+//   centers.geojson   أقسام ومراكز (Sec_Code)
+//   villages.geojson  شياخات وقرى (Ssec_Code_1) — 2399 = desert hinterland, no local unit
+//   units-mapping.csv village → local unit (edit to group several villages under one unit)
+// Local-unit polygons = union of their villages, until the official unit boundaries arrive.
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import * as turf from '@turf/turf';
+import { cleanName } from './names.js';
 
-export const CENTERS = [
-  { id: 'F', ar: 'مركز الفيوم' },
-  { id: 'S', ar: 'مركز سنورس' },
-  { id: 'T', ar: 'مركز طامية' },
-  { id: 'I', ar: 'مركز إطسا' },
-  { id: 'A', ar: 'مركز أبشواي' },
-  { id: 'Y', ar: 'مركز يوسف الصديق' },
-];
+const GEO_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'geo');
+const DESERT = '2399';
+const readJson = f => JSON.parse(fs.readFileSync(path.join(GEO_DIR, f), 'utf8'));
 
-// [village, center, unitId, unitName, lng, lat, kind]
-const VILLAGES = [
-  ['دمو', 'F', 'u01', 'الوحدة المحلية بدمو', 30.880, 29.340, 'قرية'],
-  ['سنرو', 'F', 'u02', 'الوحدة المحلية بسنرو', 30.930, 29.330, 'قرية'],
-  ['العزب', 'F', 'u03', 'الوحدة المحلية بالعزب', 30.860, 29.255, 'قرية'],
-  ['الحادقة', 'F', 'u04', 'الوحدة المحلية بالحادقة', 30.800, 29.338, 'قرية'],
-  ['حي شرق الفيوم', 'F', 'u05', 'حي شرق الفيوم', 30.852, 29.310, 'حي'],
-  ['حي غرب الفيوم', 'F', 'u06', 'حي غرب الفيوم', 30.826, 29.303, 'حي'],
-  ['سنهور', 'S', 'u07', 'الوحدة المحلية بسنهور', 30.950, 29.420, 'قرية'],
-  ['جرفس', 'S', 'u07', 'الوحدة المحلية بسنهور', 30.905, 29.447, 'قرية'],
-  ['بيهمو', 'S', 'u08', 'الوحدة المحلية ببيهمو', 30.858, 29.372, 'قرية'],
-  ['فيديمين', 'S', 'u09', 'الوحدة المحلية بفيديمين', 30.952, 29.462, 'قرية'],
-  ['مدينة سنورس', 'S', 'u10', 'مجلس مدينة سنورس', 30.880, 29.410, 'مدينة'],
-  ['سرسنا', 'T', 'u11', 'الوحدة المحلية بسرسنا', 31.012, 29.488, 'قرية'],
-  ['المظاطلي', 'T', 'u11', 'الوحدة المحلية بسرسنا', 30.995, 29.515, 'قرية'],
-  ['فانوس', 'T', 'u12', 'الوحدة المحلية بفانوس', 31.005, 29.425, 'قرية'],
-  ['قصر رشوان', 'T', 'u13', 'الوحدة المحلية بقصر رشوان', 30.925, 29.502, 'قرية'],
-  ['مدينة طامية', 'T', 'u14', 'مجلس مدينة طامية', 30.960, 29.478, 'مدينة'],
-  ['تطون', 'I', 'u15', 'الوحدة المحلية بتطون', 30.790, 29.188, 'قرية'],
-  ['قلهانة', 'I', 'u16', 'الوحدة المحلية بقلهانة', 30.860, 29.200, 'قرية'],
-  ['الغرق', 'I', 'u17', 'الوحدة المحلية بالغرق', 30.715, 29.148, 'قرية'],
-  ['منية الحيط', 'I', 'u18', 'الوحدة المحلية بمنية الحيط', 30.905, 29.168, 'قرية'],
-  ['مدينة إطسا', 'I', 'u19', 'مجلس مدينة إطسا', 30.792, 29.236, 'مدينة'],
-  ['طبهار', 'A', 'u20', 'الوحدة المحلية بطبهار', 30.660, 29.330, 'قرية'],
-  ['أبوكساه', 'A', 'u21', 'الوحدة المحلية بأبوكساه', 30.720, 29.412, 'قرية'],
-  ['زاوية الكرادسة', 'A', 'u22', 'الوحدة المحلية بزاوية الكرادسة', 30.765, 29.372, 'قرية'],
-  ['مدينة أبشواي', 'A', 'u23', 'مجلس مدينة أبشواي', 30.690, 29.370, 'مدينة'],
-  ['قوته', 'Y', 'u24', 'الوحدة المحلية بقوته', 30.582, 29.332, 'قرية'],
-  ['الشواشنة', 'Y', 'u24', 'الوحدة المحلية بقوته', 30.622, 29.288, 'قرية'],
-  ['مدينة يوسف الصديق', 'Y', 'u25', 'مجلس مدينة يوسف الصديق', 30.545, 29.292, 'مدينة'],
-];
+function readMapping() {
+  const txt = fs.readFileSync(path.join(GEO_DIR, 'units-mapping.csv'), 'utf8').replace(/^﻿/, '');
+  const [head, ...lines] = txt.trim().split(/\r?\n/);
+  const cols = head.split(',');
+  const split = l => (l.match(/("([^"]|"")*"|[^,]*)(,|$)/g) || []).slice(0, cols.length).map(s => s.replace(/,$/, '').replace(/^"|"$/g, '').replace(/""/g, '"'));
+  return Object.fromEntries(lines.filter(Boolean).map(l => { const r = Object.fromEntries(cols.map((c, i) => [c, split(l)[i]])); return [r.village_code, r]; }));
+}
 
-// Rough governorate outline (agricultural depression) — demo only.
-const OUTLINE = [[30.38, 29.14], [30.55, 29.10], [30.72, 29.07], [30.92, 29.09], [31.05, 29.17],
-  [31.08, 29.40], [31.06, 29.54], [30.90, 29.57], [30.78, 29.52], [30.60, 29.52], [30.44, 29.49],
-  [30.42, 29.36], [30.38, 29.14]];
-// Areas not under any local unit → go to the governorate (ops queue).
-const NO_UNIT_AREAS = [
-  { name: 'بحيرة قارون', coords: [[30.48, 29.42], [30.56, 29.40], [30.66, 29.395], [30.76, 29.42], [30.80, 29.46], [30.72, 29.49], [30.58, 29.49], [30.48, 29.46], [30.48, 29.42]] },
-  { name: 'محمية وادي الريان', coords: [[30.40, 29.16], [30.52, 29.12], [30.56, 29.20], [30.52, 29.26], [30.42, 29.25], [30.40, 29.16]] },
-];
+// Fast point-in-polygon with a bbox pre-check
+function indexed(features) {
+  return features.map(f => ({ f, bb: turf.bbox(f) }));
+}
+function hit(list, pt) {
+  const [x, y] = pt.geometry.coordinates;
+  for (const { f, bb } of list) if (x >= bb[0] && x <= bb[2] && y >= bb[1] && y <= bb[3] && turf.booleanPointInPolygon(pt, f)) return f;
+  return null;
+}
 
 let cache = null;
 
 export function buildGeo() {
-  if (cache) return cache;
-  const outline = turf.polygon([OUTLINE]);
-  const holes = NO_UNIT_AREAS.map(a => turf.polygon([a.coords], { name: a.name }));
-  let land = outline;
-  for (const h of holes) land = turf.difference(turf.featureCollection([land, h])) || land;
+  if (cache) return cache.public;
+  const border = readJson('border.geojson').features[0];
+  const centersRaw = readJson('centers.geojson').features;
+  const villagesRaw = readJson('villages.geojson').features;
+  const mapping = readMapping();
 
-  const pts = VILLAGES.map(v => [v[4], v[5]]);
-  const vor = Delaunay.from(pts).voronoi([30.30, 29.00, 31.20, 29.65]);
-
-  const villages = VILLAGES.map((v, i) => {
-    const cell = turf.polygon([vor.cellPolygon(i)]);
-    const clipped = turf.intersect(turf.featureCollection([cell, land]));
-    return {
-      type: 'Feature',
-      geometry: clipped.geometry,
-      properties: { id: `v${String(i + 1).padStart(2, '0')}`, name: v[0], centerId: v[1], unitId: v[2], kind: v[6], lng: v[4], lat: v[5] },
-    };
+  const centerName = {};
+  const centers = centersRaw.filter(f => f.properties.Sec_Code !== DESERT).map(f => {
+    const id = f.properties.Sec_Code, name = cleanName(f.properties.Sec_Name_Ar);
+    centerName[id] = name;
+    return { type: 'Feature', geometry: f.geometry, properties: { id, name, nameEn: (f.properties.Sec_Name_En || '').replace(/\s+/g, ' ').trim(), population: f.properties['جمله_السكان'] || null } };
   });
 
-  const unitIds = [...new Set(VILLAGES.map(v => v[2]))];
-  const units = unitIds.map(uid => {
-    const vs = villages.filter(f => f.properties.unitId === uid);
+  const desertParts = villagesRaw.filter(f => f.properties.Sec_Code === DESERT);
+  const desert = desertParts.length > 1 ? turf.union(turf.featureCollection(desertParts)) : desertParts[0];
+  const noUnitAreas = turf.featureCollection(desert ? [{ type: 'Feature', geometry: desert.geometry, properties: { name: 'الظهير الصحراوي (يتبع المحافظة)' } }] : []);
+
+  const villages = [];
+  for (const f of villagesRaw) {
+    const p = f.properties, code = p.Ssec_Code_1;
+    if (p.Sec_Code === DESERT) continue;
+    const m = mapping[code];
+    if (!m) { console.warn(`[geo] village ${code} missing from units-mapping.csv — skipped`); continue; }
+    const pt = turf.pointOnFeature(f).geometry.coordinates;
+    villages.push({
+      type: 'Feature', geometry: f.geometry,
+      properties: {
+        id: code, name: m.village_name || cleanName(p['شياخه_قريه']), rawName: (p['شياخه_قريه'] || '').trim(),
+        centerId: p.Sec_Code, unitId: m.unit_id, kind: m.type || (p['حضر_ريف'] === 'حضر' ? 'مدينة' : 'قرية'),
+        population: p['جمله_السكان'] || null, households: p['عدد_الاسر'] || null, lng: +pt[0].toFixed(6), lat: +pt[1].toFixed(6),
+      },
+    });
+  }
+
+  const byUnit = {};
+  for (const v of villages) (byUnit[v.properties.unitId] ||= []).push(v);
+  const units = Object.entries(byUnit).map(([id, vs]) => {
     const geom = vs.length === 1 ? vs[0] : turf.union(turf.featureCollection(vs));
-    const src = VILLAGES.find(v => v[2] === uid);
+    const m = mapping[vs[0].properties.id];
+    const centerId = vs[0].properties.centerId;
     return {
-      type: 'Feature',
-      geometry: geom.geometry,
-      properties: { id: uid, name: src[3], centerId: src[1], centerName: CENTERS.find(c => c.id === src[1]).ar, villages: vs.map(f => f.properties.name) },
+      type: 'Feature', geometry: geom.geometry,
+      properties: { id, name: m.unit_name, centerId, centerName: centerName[centerId] || m.center_name, villages: vs.map(v => v.properties.name), population: vs.reduce((s, v) => s + (v.properties.population || 0), 0) },
     };
-  });
+  }).sort((a, b) => a.properties.id.localeCompare(b.properties.id));
 
-  const centers = CENTERS.map(c => {
-    const us = units.filter(u => u.properties.centerId === c.id);
-    const geom = turf.union(turf.featureCollection(us));
-    return { type: 'Feature', geometry: geom.geometry, properties: { id: c.id, name: c.ar } };
-  });
-
-  cache = {
-    outline: { type: 'Feature', geometry: outline.geometry, properties: {} },
-    noUnitAreas: turf.featureCollection(holes),
+  const pub = {
+    outline: { type: 'Feature', geometry: border.geometry, properties: {} },
+    noUnitAreas,
     villages: turf.featureCollection(villages),
     units: turf.featureCollection(units),
     centers: turf.featureCollection(centers),
-    bbox: turf.bbox(outline),
+    bbox: turf.bbox(border),
+    source: 'Fayoum.gdb (CAPMAS) — local-unit boundaries = union of villages until official boundaries arrive',
   };
-  return cache;
+  cache = { public: pub, idxVillages: indexed(villages), idxNoUnit: indexed(noUnitAreas.features), unitById: Object.fromEntries(units.map(u => [u.properties.id, u])) };
+  return pub;
 }
 
 // Point → { inside, village, unit, center, noUnitArea }
 export function locate(lng, lat) {
-  const g = buildGeo();
+  buildGeo();
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return { inside: false };
   const p = turf.point([lng, lat]);
-  if (!turf.booleanPointInPolygon(p, g.outline)) return { inside: false };
-  const area = g.noUnitAreas.features.find(f => turf.booleanPointInPolygon(p, f));
+  if (!turf.booleanPointInPolygon(p, cache.public.outline)) return { inside: false };
+  const area = hit(cache.idxNoUnit, p);
   if (area) return { inside: true, noUnitArea: area.properties.name };
-  const v = g.villages.features.find(f => turf.booleanPointInPolygon(p, f));
-  if (!v) return { inside: true, noUnitArea: 'خارج نطاق الوحدات' };
-  const u = g.units.features.find(f => f.properties.id === v.properties.unitId);
+  const v = hit(cache.idxVillages, p);
+  if (!v) return { inside: true, noUnitArea: 'خارج نطاق الوحدات المحلية' };
+  const u = cache.unitById[v.properties.unitId];
   return {
     inside: true,
     village: { id: v.properties.id, name: v.properties.name },
@@ -128,13 +115,16 @@ export function locate(lng, lat) {
 
 export function randomPointIn(feature, rand = Math.random) {
   const [minX, minY, maxX, maxY] = turf.bbox(feature);
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 300; i++) {
     const p = [minX + rand() * (maxX - minX), minY + rand() * (maxY - minY)];
     if (turf.booleanPointInPolygon(turf.point(p), feature)) return p;
   }
-  return turf.centroid(feature).geometry.coordinates;
+  return turf.pointOnFeature(feature).geometry.coordinates;
 }
 
 export function distanceM(a, b) {
-  return turf.distance(turf.point(a), turf.point(b), { units: 'meters' });
+  // equirectangular approximation — accurate to <0.5% at Fayoum's scale and much faster than turf.distance
+  const R = 6371000, k = Math.PI / 180;
+  const x = (b[0] - a[0]) * k * Math.cos((a[1] + b[1]) / 2 * k), y = (b[1] - a[1]) * k;
+  return Math.sqrt(x * x + y * y) * R;
 }

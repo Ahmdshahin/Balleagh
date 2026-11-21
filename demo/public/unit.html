@@ -80,7 +80,7 @@ const [heads, geo] = await Promise.all([api('/api/users?role=UNIT_HEAD'), api('/
 const unitOf = id => geo.units.features.find(f => f.properties.id === id)?.properties;
 const sel = document.getElementById('who');
 sel.innerHTML = heads.map(h => `<option value="${h.id}">${esc(unitOf(h.unitId)?.name)} — ${esc(h.name)}</option>`).join('');
-let me = heads.find(h => h.id === (new URLSearchParams(location.search).get('as') || localStorage.getItem('ballegh:unit'))) || heads.find(h => h.unitId === 'u17') || heads[0];
+let me = heads.find(h => h.id === (new URLSearchParams(location.search).get('as') || localStorage.getItem('ballegh:unit'))) || heads[0];
 sel.value = me.id;
 sel.onchange = () => { me = heads.find(h => h.id === sel.value); localStorage.setItem('ballegh:unit', me.id); boot(); };
 

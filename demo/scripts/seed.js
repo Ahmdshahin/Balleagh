@@ -29,7 +29,7 @@ const DESCS = {
 const CAT_WEIGHTS = { garbage: 18, sewage: 13, water: 9, lighting: 10, roads: 10, agri_encroach: 9, illegal_build: 6, state_land: 4, dredging: 3, canals: 8, dogs: 5, emergency: 1, other: 4 };
 const ACTIONS = { garbage: 'رفع المخلفات بمعدات الوحدة وتطهير الموقع', sewage: 'تسليك الخط وتغيير غطاء البالوعة', water: 'إصلاح الكسر بالتنسيق مع شركة المياه', lighting: 'تغيير الكشافات وإصلاح الكابل', roads: 'ردم الحفرة وتسويتها مؤقتاً', agri_encroach: 'إزالة الأعمدة وتحرير محضر', illegal_build: 'إيقاف الأعمال وتحرير محضر مخالفة', state_land: 'إزالة التعدي بالتنسيق مع أملاك الدولة', dredging: 'ضبط المعدات وتحرير محضر', canals: 'تطهير المجرى ورفع المخلفات', dogs: 'التنسيق مع الطب البيطري', emergency: 'التعامل مع الحريق بالتنسيق مع الحماية المدنية', other: 'إزالة الإشغال' };
 
-export function seed({ seedValue = 20261120, reportsCount = 1500, now = Date.now() } = {}) {
+export function seed({ seedValue = 20261120, reportsCount = 4500, now = Date.now() } = {}) {
   const rand = mulberry32(seedValue);
   const pick = a => a[Math.floor(rand() * a.length)];
   const between = (a, b) => a + rand() * (b - a);
@@ -57,9 +57,12 @@ export function seed({ seedValue = 20261120, reportsCount = 1500, now = Date.now
         : { ack: between(1.4, 3), res: between(1.3, 2.4), rej: 0.18, reopen: 0.2, rating: 2.6 };
   }
   // make the story clear for the demo
-  Object.assign(profiles.u17, { ack: 2.8, res: 2.3, rej: 0.22, reopen: 0.25, rating: 2.3 }); // الغرق — weak
-  Object.assign(profiles.u13, { ack: 2.2, res: 1.9, rej: 0.3, reopen: 0.15, rating: 2.6 }); // قصر رشوان — rejects a lot
-  Object.assign(profiles.u07, { ack: 0.2, res: 0.35, rej: 0.02, reopen: 0.03, rating: 4.7 }); // سنهور — strong
+  // make the story clear for the demo: pick real units by village name (fallback: fixed positions)
+  const unitIds = geo.units.features.map(f => f.properties.id);
+  const byName = (q, i) => geo.units.features.find(f => f.properties.villages.some(v => v.includes(q)))?.properties.id || unitIds[i % unitIds.length];
+  Object.assign(profiles[byName('الغرق', 120)], { ack: 2.8, res: 2.3, rej: 0.22, reopen: 0.25, rating: 2.3 }); // weak
+  Object.assign(profiles[byName('قصر رشوان', 70)], { ack: 2.2, res: 1.9, rej: 0.3, reopen: 0.15, rating: 2.6 }); // rejects a lot
+  Object.assign(profiles[byName('سنهور', 90)], { ack: 0.2, res: 0.35, rej: 0.02, reopen: 0.03, rating: 4.7 }); // strong
 
   const citizens = [];
   for (let i = 0; i < 420; i++) { const c = { id: `c-${i}`, role: 'CITIZEN', name: name(), phone: `010${String(Math.floor(rand() * 1e8)).padStart(8, '0')}`, phoneVerified: true }; db.users.push(c); citizens.push(c); }
@@ -67,7 +70,10 @@ export function seed({ seedValue = 20261120, reportsCount = 1500, now = Date.now
   // weighted pickers
   const catList = Object.entries(CAT_WEIGHTS).flatMap(([c, w]) => Array(w).fill(c));
   const villages = geo.villages.features;
-  const villageWeights = villages.flatMap(v => Array(v.properties.kind === 'قرية' ? 3 : 4).fill(v));
+  // more people → more reports, flattened so small villages still get some (weight = population^0.35)
+  const cum = []; let tot = 0;
+  for (const v of villages) { tot += Math.max(5, Math.pow(v.properties.population || 2000, 0.35)); cum.push(tot); }
+  const pickVillage = () => { const x = rand() * tot; let lo = 0, hi = cum.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (cum[m] < x) lo = m + 1; else hi = m; } return villages[lo]; };
   const hotspots = villages.slice(0, 0); // reserved
 
   const DAY = 86_400_000;
@@ -76,7 +82,7 @@ export function seed({ seedValue = 20261120, reportsCount = 1500, now = Date.now
     const age = Math.pow(rand(), 1.25) * 60 * DAY; // more recent → more reports
     const at = now - age;
     const cat = pick(catList);
-    let v = pick(villageWeights);
+    let v = pickVillage();
     let p = randomPointIn(v, rand);
     // a few duplicate clusters
     let catFinal = cat, atFinal = at;
@@ -85,7 +91,7 @@ export function seed({ seedValue = 20261120, reportsCount = 1500, now = Date.now
   }
   // a few reports in areas without a unit
   for (let i = 0; i < 8; i++) {
-    const area = geo.noUnitAreas.features[i % 2];
+    const area = geo.noUnitAreas.features[i % geo.noUnitAreas.features.length];
     items.push({ at: now - rand() * 20 * DAY, cat: pick(['garbage', 'state_land', 'dredging']), p: randomPointIn(area, rand), citizen: pick(citizens), social: false });
   }
   items.sort((a, b) => a.at - b.at);

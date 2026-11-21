@@ -10,10 +10,12 @@
     "dev": "node --watch server.js",
     "seed": "node demo/scripts/seed.js",
     "zip": "node scripts/make-zip.mjs",
-    "auto-deploy": "node scripts/auto-deploy.mjs"
+    "auto-deploy": "node scripts/auto-deploy.mjs",
+    "import-gdb": "node demo/scripts/import-gdb.mjs"
   },
   "dependencies": {
     "@turf/turf": "^7.4.0",
+    "compression": "^1.8.2",
     "d3-delaunay": "^6.0.6",
     "express": "^4.22.3",
     "multer": "^2.5.0",
