@@ -61,7 +61,7 @@
 <script src="/socket.io/socket.io.js"></script>
 <script type="module">
 import { mountNav, api, meta, useUser, esc, fmt, dur, bandBadge, BAND_COLOR, brandHtml, catAr, toast } from '/js/common.js';
-import { createMap, addUnits, hoverUnits } from '/js/map.js';
+import { createMap, addUnits, hoverUnits, addPilot } from '/js/map.js';
 import { renderDetail } from '/js/detail.js';
 import { icon } from '/js/icons.js';
 
@@ -76,6 +76,7 @@ let K, sortKey = 'score', sortDir = 1;
 const map = createMap('gmap', { zoom: 9.3 });
 await new Promise(r => map.on('load', r));
 addUnits(map, geo.units);
+addPilot(map, geo.units, (await meta()).settings.pilotUnits || []);
 hoverUnits(map, p => { const u = K?.units.find(x => x.id === p.id); return `<b>${esc(p.name)}</b><div class="small">${u ? bandBadge(u.band, u.score) : ''}</div>${u ? `<div class="tiny muted num">${u.total} بلاغ · ${u.overdue} متأخر · رضا ${fmt(u.k6, 1)}</div>` : ''}`; });
 
 async function load() {

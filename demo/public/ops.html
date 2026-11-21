@@ -48,6 +48,7 @@
   <div class="seg" id="period" style="width:200px"><button data-d="7">7 أيام</button><button data-d="30" class="on">30 يوم</button><button data-d="60">60 يوم</button></div>
   <select class="input" id="role" style="width:auto"><option value="ops-sup">مشرف الغرفة</option><option value="ops-rev">مراجع الغرفة</option></select>
   <button class="icon-btn" id="sound" title="صوت التنبيه"></button>
+  <button class="btn ghost sm" id="pilotBtn" title="بني صالح وزاوية الكرادسة + السيليين">★ المنطقة التجريبية</button>
   <button class="btn secondary sm" id="social">+ بلاغ سوشيال ميديا</button>
   <button class="btn ghost sm" id="auditBtn">سجل التدقيق</button>
 
@@ -88,7 +89,7 @@
 <script type="module">
 import { mountNav, api, meta, useUser, toast, esc, ago, fmt, dur, statusBadge, priorityBadge, slaBar, catAr, statusAr, priorityAr, chime, modal, brandHtml, bandBadge, STATUS_COLOR, PRIORITY_COLOR, BAND_COLOR, BAND_AR, dt } from '/js/common.js';
 import { icon } from '/js/icons.js';
-import { createMap, setBase, addUnits, addReports, colorPointsBy, reportsToFC, hoverUnits } from '/js/map.js';
+import { createMap, setBase, addUnits, addReports, colorPointsBy, reportsToFC, hoverUnits, addPilot } from '/js/map.js';
 import { renderDetail, doAction, askReason } from '/js/detail.js';
 
 document.getElementById('brand').innerHTML = brandHtml(); mountNav('ops');
@@ -122,6 +123,8 @@ function legendHtml() {
 const map = createMap('map');
 await new Promise(r => map.on('load', r));
 addUnits(map, geo.units);
+const pilotBB = addPilot(map, geo.units, M.settings.pilotUnits || []);
+document.getElementById('pilotBtn').onclick = () => pilotBB && map.fitBounds(pilotBB, { padding: 90, maxZoom: 13.5 });
 addReports(map, reportsToFC([]));
 hoverUnits(map, p => {
   const u = kpis?.units.find(x => x.id === p.id);

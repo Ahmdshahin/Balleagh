@@ -84,3 +84,20 @@ export function hoverUnits(map, onEnter) {
 export function mapReady(map) {
   return new Promise(r => { if (map.isStyleLoaded()) r(); else { map.once('style.load', r); map.once('load', r); } });
 }
+
+// Pilot area (settings.pilotUnits): gold dashed outline on top of everything, plus its bounds for "zoom to pilot".
+export function addPilot(map, unitsFC, ids = []) {
+  const fc = { type: 'FeatureCollection', features: unitsFC.features.filter(f => ids.includes(f.properties.id)) };
+  if (!fc.features.length) return null;
+  map.addSource('pilot', { type: 'geojson', data: fc });
+  map.addLayer({ id: 'pilot-glow', type: 'line', source: 'pilot', paint: { 'line-color': '#F4A21D', 'line-width': 9, 'line-opacity': 0.25, 'line-blur': 2 } });
+  map.addLayer({ id: 'pilot-line', type: 'line', source: 'pilot', paint: { 'line-color': '#D98A0C', 'line-width': 3, 'line-dasharray': [2, 1.2] } });
+  return pilotBounds(fc);
+}
+export function pilotBounds(fc) {
+  const b = [180, 90, -180, -90];
+  for (const f of fc.features) (JSON.stringify(f.geometry.coordinates).match(/-?\d+\.?\d*,-?\d+\.?\d*/g) || []).forEach(s => {
+    const [x, y] = s.split(',').map(Number); b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y);
+  });
+  return b;
+}

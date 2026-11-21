@@ -63,6 +63,10 @@ export function seed({ seedValue = 20261120, reportsCount = 4500, now = Date.now
   Object.assign(profiles[byName('الغرق', 120)], { ack: 2.8, res: 2.3, rej: 0.22, reopen: 0.25, rating: 2.3 }); // weak
   Object.assign(profiles[byName('قصر رشوان', 70)], { ack: 2.2, res: 1.9, rej: 0.3, reopen: 0.15, rating: 2.6 }); // rejects a lot
   Object.assign(profiles[byName('سنهور', 90)], { ack: 0.2, res: 0.35, rej: 0.02, reopen: 0.03, rating: 4.7 }); // strong
+  // pilot units: Bani Saleh + Zawyet El-Karadsa = busy, average, some late reports; Al-Sileen = responsive
+  const PILOT = DEFAULT_SETTINGS.pilotUnits;
+  if (profiles[PILOT[0]]) Object.assign(profiles[PILOT[0]], { ack: 0.9, res: 1.05, rej: 0.07, reopen: 0.1, rating: 3.7 });
+  if (profiles[PILOT[1]]) Object.assign(profiles[PILOT[1]], { ack: 0.35, res: 0.55, rej: 0.03, reopen: 0.05, rating: 4.4 });
 
   const citizens = [];
   for (let i = 0; i < 420; i++) { const c = { id: `c-${i}`, role: 'CITIZEN', name: name(), phone: `010${String(Math.floor(rand() * 1e8)).padStart(8, '0')}`, phoneVerified: true }; db.users.push(c); citizens.push(c); }
@@ -93,6 +97,15 @@ export function seed({ seedValue = 20261120, reportsCount = 4500, now = Date.now
   for (let i = 0; i < 8; i++) {
     const area = geo.noUnitAreas.features[i % geo.noUnitAreas.features.length];
     items.push({ at: now - rand() * 20 * DAY, cat: pick(['garbage', 'state_land', 'dredging']), p: randomPointIn(area, rand), citizen: pick(citizens), social: false });
+  }
+  // denser activity in the pilot area so the demo has plenty to show there
+  for (const [uid, n] of [[PILOT[0], 260], [PILOT[1], 140]]) {
+    const vs = villages.filter(v => v.properties.unitId === uid);
+    if (!vs.length) continue;
+    for (let i = 0; i < n; i++) {
+      const v = vs[Math.floor(rand() * vs.length)];
+      items.push({ at: now - Math.pow(rand(), 1.15) * 60 * DAY, cat: pick(catList), p: randomPointIn(v, rand), citizen: pick(citizens), social: rand() < 0.06 });
+    }
   }
   items.sort((a, b) => a.at - b.at);
 

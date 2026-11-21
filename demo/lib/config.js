@@ -65,6 +65,8 @@ export const DEFAULT_SETTINGS = {
   ],
   // escalation: share of the resolve window already overdue
   escalation: { toOpsPct: 50, toGovernorPct: 100, criticalToGovernor: true },
+  // pilot area the demo is built around (highlighted on maps, default unit account, citizen test location)
+  pilotUnits: ['u230214', 'u230407'],
   reportSchedules: [
     { id: 'daily', name: 'الملخص اليومي', freq: 'daily', time: '08:00', type: 'summary', recipients: 'المحافظ، السكرتير العام', enabled: true },
     { id: 'weekly', name: 'تقرير أداء الوحدات الأسبوعي', freq: 'weekly', time: 'الأحد 09:00', type: 'units', recipients: 'المحافظ، رؤساء المراكز', enabled: true },

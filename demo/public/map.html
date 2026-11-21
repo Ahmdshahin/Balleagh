@@ -71,6 +71,7 @@
       <button data-b="none"><i style="background:#F7F9F7"></i><span>بدون</span></button>
     </div>
     <h4>الحدود الإدارية</h4>
+    <label class="ly"><input type="checkbox" data-ly="pilot" checked><span class="sw" style="border:2px dashed #D98A0C"></span>المنطقة التجريبية</label>
     <label class="ly"><input type="checkbox" data-ly="outline" checked><span class="sw" style="border:2px solid #135F2B"></span>حدود المحافظة</label>
     <label class="ly"><input type="checkbox" data-ly="centers" checked><span class="sw" style="border:2px dashed #0F172A"></span>المراكز</label>
     <label class="ly"><input type="checkbox" data-ly="units" checked><span class="sw" style="background:#16A34A55;border:1px solid #135F2B"></span>الوحدات المحلية<input type="range" min="0" max="80" value="30" data-op="units-fill" title="الشفافية"></label>
@@ -90,6 +91,7 @@
   <div class="panel search"><input id="q" placeholder="ابحث عن قرية، وحدة محلية، أو رقم بلاغ…" autocomplete="off"><div class="res hidden" id="res"></div></div>
   <div class="panel tools" id="tools">
     <button data-t="home" title="عرض المحافظة كاملة"></button>
+    <button data-t="pilot" title="المنطقة التجريبية: بني صالح وزاوية الكرادسة + السيليين" style="color:#D98A0C;font-size:20px">★</button>
     <button data-t="identify" class="on" title="استعلام عن معلم (اضغط على الخريطة)"></button>
     <button data-t="measure" title="قياس مسافة"></button>
     <button data-t="locate" title="موقعي"></button>
@@ -111,7 +113,7 @@
 <script type="module">
 import { api, meta, useUser, esc, fmt, dt, ago, statusBadge, priorityBadge, bandBadge, catAr, statusAr, priorityAr, brandHtml, mountNav, toast, STATUS_COLOR, PRIORITY_COLOR, BAND_COLOR, BAND_AR } from '/js/common.js';
 import { icon } from '/js/icons.js';
-import { createMap, setBase, reportsToFC, mapReady } from '/js/map.js';
+import { createMap, setBase, reportsToFC, mapReady, addPilot } from '/js/map.js';
 
 document.getElementById('brand').innerHTML = brandHtml(); mountNav('map');
 useUser(localStorage.getItem('ballegh:ops') || 'ops-sup');
@@ -126,7 +128,7 @@ const catColor = Object.fromEntries(M.categories.map((c, i) => [c.code, CAT_COLO
 document.getElementById('fCat').insertAdjacentHTML('beforeend', M.categories.map(c => `<option value="${c.code}">${esc(c.ar)}</option>`).join(''));
 document.getElementById('fCenter').insertAdjacentHTML('beforeend', geo.centers.features.map(f => `<option value="${f.properties.id}">${esc(f.properties.name)}</option>`).join(''));
 const TOOL_ICONS = { home: 'layers', identify: 'filter', measure: 'roads', locate: 'locate', geojson: 'doc', csv: 'image', print: 'camera' };
-document.querySelectorAll('#tools button').forEach(b => b.innerHTML = icon({ home: 'pin', identify: 'alert', measure: 'roads', locate: 'locate', geojson: 'doc', csv: 'filter', print: 'image' }[b.dataset.t], 20));
+document.querySelectorAll('#tools button:not([data-t="pilot"])').forEach(b => b.innerHTML = icon({ home: 'pin', identify: 'alert', measure: 'roads', locate: 'locate', geojson: 'doc', csv: 'filter', print: 'image' }[b.dataset.t], 20));
 
 // ---------- map & layers ----------
 const map = createMap('map', { zoom: 9.6 });
@@ -150,6 +152,7 @@ map.addLayer({ id: 'nounit-fill', type: 'fill', source: 'nounit', paint: { 'fill
 map.addLayer({ id: 'nounit-line', type: 'line', source: 'nounit', paint: { 'line-color': '#0F766E', 'line-width': 1.5, 'line-dasharray': [3, 2] } });
 map.addLayer({ id: 'centers-line', type: 'line', source: 'centers', paint: { 'line-color': '#0F172A', 'line-width': 2, 'line-dasharray': [4, 2], 'line-opacity': 0.75 } });
 map.addLayer({ id: 'outline-line', type: 'line', source: 'outline', paint: { 'line-color': '#135F2B', 'line-width': 3.5 } });
+const pilotBB = addPilot(map, geo.units, M.settings.pilotUnits || []);
 
 map.addSource('reports', { type: 'geojson', data: reportsToFC([]) });
 map.addSource('reports-cl', { type: 'geojson', data: reportsToFC([]), cluster: true, clusterRadius: 50, clusterMaxZoom: 14 });
@@ -162,7 +165,7 @@ map.addSource('measure', { type: 'geojson', data: { type: 'FeatureCollection', f
 map.addLayer({ id: 'measure-line', type: 'line', source: 'measure', paint: { 'line-color': '#F4A21D', 'line-width': 3, 'line-dasharray': [2, 1] } });
 map.addLayer({ id: 'measure-pts', type: 'circle', source: 'measure', filter: ['==', '$type', 'Point'], paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#F4A21D', 'circle-stroke-width': 3 } });
 
-const LAYER_GROUPS = { outline: ['outline-line'], centers: ['centers-line'], units: ['units-fill', 'units-line'], villages: ['villages-line'], nounit: ['nounit-fill', 'nounit-line'] };
+const LAYER_GROUPS = { pilot: ['pilot-glow', 'pilot-line'], outline: ['outline-line'], centers: ['centers-line'], units: ['units-fill', 'units-line'], villages: ['villages-line'], nounit: ['nounit-fill', 'nounit-line'] };
 const vis = (ids, on) => ids.forEach(id => map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none'));
 document.getElementById('layers').addEventListener('change', e => { const ly = e.target.dataset.ly; if (ly) vis(LAYER_GROUPS[ly], e.target.checked); });
 document.getElementById('layers').addEventListener('input', e => { const op = e.target.dataset.op; if (op) map.setPaintProperty(op, 'fill-opacity', Number(e.target.value) / 100); });
@@ -286,6 +289,7 @@ document.getElementById('tools').onclick = e => {
   const t = b.dataset.t;
   if (t === 'identify' || t === 'measure') return setTool(tool === t && t === 'measure' ? 'identify' : t);
   if (t === 'home') map.fitBounds(geo.bbox, { padding: 40 });
+  if (t === 'pilot' && pilotBB) map.fitBounds(pilotBB, { padding: 90, maxZoom: 13.5 });
   if (t === 'locate') navigator.geolocation?.getCurrentPosition(p => map.flyTo({ center: [p.coords.longitude, p.coords.latitude], zoom: 14 }), () => toast('مش قادر أحدد موقعك', 'err'));
   if (t === 'geojson') {
     const fc = { type: 'FeatureCollection', features: current.map(r => ({ type: 'Feature', geometry: { type: 'Point', coordinates: r.location }, properties: { code: r.code, category: catAr(r.category), status: statusAr(r.status), priority: priorityAr(r.priority), village: r.villageName, unit: r.unitName, center: r.centerName, createdAt: new Date(r.createdAt).toISOString() } })) };

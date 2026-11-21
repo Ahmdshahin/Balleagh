@@ -229,7 +229,7 @@ app.get('/api/audit', wrap(req => {
 app.put('/api/settings', wrap(req => {
   const u = actor(req);
   if (u.role !== 'OPS_SUPERVISOR') throw httpError(403, 'الإعدادات لمشرف الغرفة فقط');
-  const allowed = ['dailyLimit', 'dupRadiusM', 'dupDays', 'dupBump1', 'dupBump2', 'resolutionRadiusM', 'autoCloseDays', 'rejectionSamplePct', 'hideReporterDefault', 'transparencyPage', 'sla', 'weights', 'thresholds', 'seasonalRules', 'escalation', 'reportSchedules'];
+  const allowed = ['pilotUnits', 'dailyLimit', 'dupRadiusM', 'dupDays', 'dupBump1', 'dupBump2', 'resolutionRadiusM', 'autoCloseDays', 'rejectionSamplePct', 'hideReporterDefault', 'transparencyPage', 'sla', 'weights', 'thresholds', 'seasonalRules', 'escalation', 'reportSchedules'];
   const before = structuredClone(db.settings);
   const changed = [];
   for (const k of allowed) if (req.body[k] !== undefined && JSON.stringify(req.body[k]) !== JSON.stringify(db.settings[k])) { db.settings[k] = req.body[k]; changed.push(k); }

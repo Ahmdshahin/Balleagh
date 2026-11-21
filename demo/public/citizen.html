@@ -263,11 +263,20 @@ function step3() {
   else if (draft.gps) setLoc(draft.gps.lng, draft.gps.lat, 'gps', draft.gps.accuracy);
   else document.getElementById('gps').click();
 }
+// Test location inside the pilot area (بني صالح، زاوية الكرادسة، السيليين)
 async function demoLocation() {
   const g = await api('/api/geo');
-  const vs = g.villages.features.filter(f => f.properties.kind === 'قرية');
-  const v = vs[Math.floor(Math.random() * vs.length)].properties;
-  setLoc(v.lng + (Math.random() - 0.5) * 0.006, v.lat + (Math.random() - 0.5) * 0.006, 'gps', 8);
+  const pilot = M.settings.pilotUnits || [];
+  const vs = g.villages.features.filter(f => pilot.includes(f.properties.unitId));
+  const pool = vs.length ? vs : g.villages.features.filter(f => f.properties.kind === 'قرية');
+  const v = pool[Math.floor(Math.random() * pool.length)].properties;
+  let lng = v.lng, lat = v.lat;
+  for (let i = 0; i < 8; i++) { // jitter around the village but stay inside its unit
+    const x = v.lng + (Math.random() - 0.5) * 0.008, y = v.lat + (Math.random() - 0.5) * 0.008;
+    const info = await api(`/api/locate?lng=${x}&lat=${y}`);
+    if (info.unit && info.unit.id === v.unitId) { lng = x; lat = y; break; }
+  }
+  setLoc(lng, lat, 'gps', 8);
 }
 async function setLoc(lng, lat, source, accuracy) {
   draft.loc = { lng, lat, source, accuracy };
